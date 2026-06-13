@@ -51,7 +51,6 @@ function buildPersonFromForm(id) {
         skillLevel: document.getElementById('skill-level').value,
         age: document.getElementById('age').value,
         willingness: document.getElementById('willingness').value,
-        wechat: document.getElementById('wechat').value.trim(),
         followStatus: document.getElementById('follow-status').value,
         notes: document.getElementById('notes').value.trim(),
     };
@@ -207,7 +206,7 @@ function refreshList() {
     updateSortArrows();
 
     if (people.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="empty-message">暂无数据，请先在「输入信息」页面添加</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-message">暂无数据，请先在「输入信息」页面添加</td></tr>';
         return;
     }
 
@@ -223,7 +222,6 @@ function refreshList() {
             '<td>' + (escHtml(person.skillLevel) || '—') + '</td>' +
             '<td>' + (escHtml(person.age) || '—') + '</td>' +
             '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
-            '<td>' + (escHtml(person.wechat) || '—') + '</td>' +
             '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
             '<td class="notes-cell" title="' + escHtml(person.notes || '') + '">' + notesShort + '</td>' +
             '<td class="time-cell">' + formatTime(person.createdAt) + '</td>' +
@@ -287,7 +285,6 @@ function editPerson(id) {
     document.getElementById('skill-level').value = person.skillLevel;
     document.getElementById('age').value = person.age;
     document.getElementById('willingness').value = person.willingness;
-    document.getElementById('wechat').value = person.wechat || '';
     document.getElementById('follow-status').value = person.followStatus || '';
     document.getElementById('notes').value = person.notes || '';
 
@@ -378,7 +375,6 @@ function displaySearchResults(results) {
             '<td>' + (escHtml(person.skillLevel) || '—') + '</td>' +
             '<td>' + (escHtml(person.age) || '—') + '</td>' +
             '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
-            '<td>' + (escHtml(person.wechat) || '—') + '</td>' +
             '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
             '<td class="notes-cell">' + (escHtml(person.notes) || '—') + '</td>' +
             '<td class="time-cell">' + formatTime(person.createdAt) + '</td>';
@@ -434,33 +430,26 @@ function importData(event) {
                 return;
             }
 
-            const count = importObj.data.length;
-            const exportedDate = importObj.exportedAt
+            var count = importObj.data.length;
+            var exportedDate = importObj.exportedAt
                 ? new Date(importObj.exportedAt).toLocaleString('zh-CN')
                 : '未知';
 
-            const action = confirm(
-                '📥 发现备份文件：\n' +
-                '  - 备份时间：' + exportedDate + '\n' +
-                '  - 记录数量：' + count + ' 条\n\n' +
-                '请选择操作：\n' +
-                '  【确定】替换当前所有数据\n' +
-                '  【取消】合并到现有数据（不覆盖）'
-            );
-
-            if (action) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(importObj.data));
-                alert('✅ 数据已替换！共导入 ' + count + ' 条记录。');
-            } else {
-                const existing = getPeople();
-                const existingIds = new Set(existing.map(p => p.id));
-                const newItems = importObj.data.filter(p => !existingIds.has(p.id));
-                const merged = [...existing, ...newItems];
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-                alert('✅ 数据已合并！新增 ' + newItems.length + ' 条记录（共 ' + merged.length + ' 条）。');
-            }
-
-            refreshList();
+            // 显示自定义弹窗
+            showImportModal(count, exportedDate, function(mode) {
+                if (mode === 'replace') {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(importObj.data));
+                    alert('✅ 数据已替换！共导入 ' + count + ' 条记录。');
+                } else if (mode === 'merge') {
+                    var existing = getPeople();
+                    var existingIds = new Set(existing.map(function(p) { return p.id; }));
+                    var newItems = importObj.data.filter(function(p) { return !existingIds.has(p.id); });
+                    var merged = existing.concat(newItems);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+                    alert('✅ 数据已合并！新增 ' + newItems.length + ' 条记录（共 ' + merged.length + ' 条）。');
+                }
+                refreshList();
+            });
         } catch (err) {
             alert('❌ 无法解析文件，请确保选择的是 JSON 格式的备份文件。');
         }
@@ -471,4 +460,29 @@ function importData(event) {
 
 function triggerImport() {
     document.getElementById('import-file-input').click();
+}
+
+// 自定义导入确认弹窗
+function showImportModal(count, dateStr, callback) {
+    var modal = document.getElementById('import-modal');
+    var body = document.getElementById('modal-body');
+    var btnReplace = document.getElementById('modal-replace');
+    var btnMerge = document.getElementById('modal-merge');
+    var btnCancel = document.getElementById('modal-cancel');
+
+    body.textContent = '备份时间：' + dateStr + '\n记录数量：' + count + ' 条\n\n替换：清空当前数据，用备份覆盖\n合并：保留现有数据，只新增备份记录';
+
+    modal.style.display = 'flex';
+
+    function close(mode) {
+        modal.style.display = 'none';
+        btnReplace.onclick = null;
+        btnMerge.onclick = null;
+        btnCancel.onclick = null;
+        if (callback) callback(mode);
+    }
+
+    btnReplace.onclick = function() { close('replace'); };
+    btnMerge.onclick = function() { close('merge'); };
+    btnCancel.onclick = function() { close(null); };
 }

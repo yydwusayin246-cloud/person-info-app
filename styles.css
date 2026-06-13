@@ -398,6 +398,81 @@ html, body {
     white-space: nowrap;
 }
 
+/* ===== 导入确认弹窗 ===== */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.modal-box {
+    background: white;
+    border-radius: 14px;
+    padding: 24px 20px 16px;
+    width: 90%;
+    max-width: 340px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+}
+
+.modal-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.modal-body {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 18px;
+    padding: 10px 14px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    white-space: pre-line;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.modal-btn {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-btn-replace {
+    background: #ff6b6b;
+    color: white;
+}
+
+.modal-btn-merge {
+    background: #667eea;
+    color: white;
+}
+
+.modal-btn-cancel {
+    background: #e0e0e0;
+    color: #555;
+}
+
+.modal-btn:active {
+    transform: scale(0.96);
+}
+
 .filter-actions {
     display: flex;
     gap: 15px;
