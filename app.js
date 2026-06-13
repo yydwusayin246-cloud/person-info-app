@@ -372,3 +372,90 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ==================== 备份 & 恢复 ====================
+
+// 导出数据为 JSON 文件并下载
+function exportData() {
+    const people = getPeople();
+    if (people.length === 0) {
+        alert('⚠️ 当前没有数据可以备份！');
+        return;
+    }
+
+    const exportObj = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        totalCount: people.length,
+        data: people
+    };
+
+    const jsonStr = JSON.stringify(exportObj, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.download = `人员信息备份_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert(`✅ 备份成功！文件已下载（${people.length} 条记录）\n\n💡 请将文件保存到安全的位置，如：\n  - 手机"文件管理"文件夹\n  - 发送到微信"文件传输助手"\n  - 保存到云盘`);
+}
+
+// 从 JSON 文件导入数据
+function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importObj = JSON.parse(e.target.result);
+
+            if (!importObj.data || !Array.isArray(importObj.data)) {
+                alert('❌ 文件格式不正确！请选择通过"💾 备份"功能导出的 JSON 文件。');
+                return;
+            }
+
+            const count = importObj.data.length;
+            const exportedDate = importObj.exportedAt
+                ? new Date(importObj.exportedAt).toLocaleString('zh-CN')
+                : '未知';
+
+            const action = confirm(
+                `📥 发现备份文件：\n` +
+                `  - 备份时间：${exportedDate}\n` +
+                `  - 记录数量：${count} 条\n\n` +
+                `请选择操作：\n` +
+                `  【确定】替换当前所有数据\n` +
+                `  【取消】合并到现有数据（不覆盖）`
+            );
+
+            if (action) {
+                // 直接替换
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(importObj.data));
+                alert(`✅ 数据已替换！共导入 ${count} 条记录。`);
+            } else {
+                // 合并模式：以 id 去重，保留导入数据优先
+                const existing = getPeople();
+                const existingIds = new Set(existing.map(p => p.id));
+                const newItems = importObj.data.filter(p => !existingIds.has(p.id));
+                const merged = [...existing, ...newItems];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+                alert(`✅ 数据已合并！新增 ${newItems.length} 条记录（共 ${merged.length} 条）。`);
+            }
+
+            refreshList();
+        } catch (err) {
+            alert('❌ 无法解析文件，请确保选择的是 JSON 格式的备份文件。');
+        }
+    };
+    reader.readAsText(file);
+
+    // 清空 input，允许重复选择同一文件
+    event.target.value = '';
+}

@@ -78,6 +78,18 @@ html, body {
     font-weight: 600;
 }
 
+/* 备份按钮特殊样式 */
+.nav-btn-backup {
+    background: rgba(255, 193, 7, 0.5);
+    border-color: rgba(255, 193, 7, 0.3);
+    flex: 0.8;
+    min-width: 50px;
+}
+
+.nav-btn-backup:hover {
+    background: rgba(255, 193, 7, 0.7);
+}
+
 /* ===== 内容区域 ===== */
 .content-area {
     flex: 1;
