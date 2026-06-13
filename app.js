@@ -442,8 +442,12 @@ function importData(event) {
                     alert('✅ 数据已替换！共导入 ' + count + ' 条记录。');
                 } else if (mode === 'merge') {
                     var existing = getPeople();
-                    var existingIds = new Set(existing.map(function(p) { return p.id; }));
-                    var newItems = importObj.data.filter(function(p) { return !existingIds.has(p.id); });
+                    // 按姓名+年龄判断重复
+                    var newItems = importObj.data.filter(function(p) {
+                        return !existing.some(function(e) {
+                            return e.name === p.name && e.age === p.age;
+                        });
+                    });
                     var merged = existing.concat(newItems);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
                     alert('✅ 数据已合并！新增 ' + newItems.length + ' 条记录（共 ' + merged.length + ' 条）。');
@@ -470,7 +474,7 @@ function showImportModal(count, dateStr, callback) {
     var btnMerge = document.getElementById('modal-merge');
     var btnCancel = document.getElementById('modal-cancel');
 
-    body.textContent = '备份时间：' + dateStr + '\n记录数量：' + count + ' 条\n\n替换：清空当前数据，用备份覆盖\n合并：保留现有数据，只新增备份记录';
+    body.textContent = '备份时间：' + dateStr + '\n记录数量：' + count + ' 条\n\n替换：清空当前数据，用备份覆盖\n合并：保留现有数据，按姓名+年龄去重后新增';
 
     modal.style.display = 'flex';
 
