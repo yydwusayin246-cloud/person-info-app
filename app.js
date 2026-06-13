@@ -33,7 +33,7 @@ function setupNavigation() {
             navBtns.forEach(b => b.classList.remove('active'));
             screens.forEach(s => s.classList.remove('active'));
             btn.classList.add('active');
-            document.getElementById(`${screenId}-screen`).classList.add('active');
+            document.getElementById(screenId + '-screen').classList.add('active');
             if (screenId === 'list') {
                 refreshList();
             }
@@ -135,7 +135,7 @@ function updateSortArrows() {
         if (currentSort.field && currentSort.order) {
             const label = currentSort.field === 'age' ? '年龄' : '意愿';
             const dir = currentSort.order === 'asc' ? '↑顺序' : '↓倒序';
-            sortInfo.textContent = ` | 按${label}${dir}`;
+            sortInfo.textContent = ' | 按' + label + dir;
         } else {
             sortInfo.textContent = '';
         }
@@ -170,7 +170,7 @@ function refreshList() {
     updateSortArrows();
 
     if (people.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="empty-message">暂无数据，请先在"输入信息"页面添加</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="empty-message">暂无数据，请先在「输入信息」页面添加</td></tr>';
         return;
     }
 
@@ -179,24 +179,23 @@ function refreshList() {
         const statusClass = getStatusClass(person.followStatus);
         const notesShort = person.notes ? (person.notes.length > 15 ? escHtml(person.notes.slice(0, 15)) + '...' : escHtml(person.notes)) : '—';
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${escHtml(person.name)}</td>
-            <td>${escHtml(person.shopLevel) || '—'}</td>
-            <td>${escHtml(person.skillLevel) || '—'}</td>
-            <td>${escHtml(person.age) || '—'}</td>
-            <td>${escHtml(person.personality) || '—'}</td>
-            <td>${escHtml(person.willingness) || '—'}</td>
-            <td>${escHtml(person.wechat) || '—'}</td>
-            <td><span class="status-badge ${statusClass}">${escHtml(person.followStatus) || '—'}</span></td>
-            <td class="notes-cell" title="${escHtml(person.notes || '')}">${notesShort}</td>
-            <td>
-                <div class="actions">
-                    <button class="btn btn-edit" onclick="editPerson(${person.id})">✏️</button>
-                    <button class="btn btn-danger" onclick="deletePerson(${person.id})">🗑️</button>
-                </div>
-            </td>
-        `;
+        row.innerHTML =
+            '<td>' + (index + 1) + '</td>' +
+            '<td>' + escHtml(person.name) + '</td>' +
+            '<td>' + (escHtml(person.shopLevel) || '—') + '</td>' +
+            '<td>' + (escHtml(person.skillLevel) || '—') + '</td>' +
+            '<td>' + (escHtml(person.age) || '—') + '</td>' +
+            '<td>' + (escHtml(person.personality) || '—') + '</td>' +
+            '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
+            '<td>' + (escHtml(person.wechat) || '—') + '</td>' +
+            '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
+            '<td class="notes-cell" title="' + escHtml(person.notes || '') + '">' + notesShort + '</td>' +
+            '<td>' +
+                '<div class="actions">' +
+                    '<button class="btn btn-edit" onclick="editPerson(' + person.id + ')">✏️</button>' +
+                    '<button class="btn btn-danger" onclick="deletePerson(' + person.id + ')">🗑️</button>' +
+                '</div>' +
+            '</td>';
         tbody.appendChild(row);
     });
 }
@@ -325,18 +324,17 @@ function displaySearchResults(results) {
     results.forEach((person, index) => {
         const statusClass = getStatusClass(person.followStatus);
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${escHtml(person.name)}</td>
-            <td>${escHtml(person.shopLevel) || '—'}</td>
-            <td>${escHtml(person.skillLevel) || '—'}</td>
-            <td>${escHtml(person.age) || '—'}</td>
-            <td>${escHtml(person.personality) || '—'}</td>
-            <td>${escHtml(person.willingness) || '—'}</td>
-            <td>${escHtml(person.wechat) || '—'}</td>
-            <td><span class="status-badge ${statusClass}">${escHtml(person.followStatus) || '—'}</span></td>
-            <td class="notes-cell">${escHtml(person.notes) || '—'}</td>
-        </tr>
+        row.innerHTML =
+            '<td>' + (index + 1) + '</td>' +
+            '<td>' + escHtml(person.name) + '</td>' +
+            '<td>' + (escHtml(person.shopLevel) || '—') + '</td>' +
+            '<td>' + (escHtml(person.skillLevel) || '—') + '</td>' +
+            '<td>' + (escHtml(person.age) || '—') + '</td>' +
+            '<td>' + (escHtml(person.personality) || '—') + '</td>' +
+            '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
+            '<td>' + (escHtml(person.wechat) || '—') + '</td>' +
+            '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
+            '<td class="notes-cell">' + (escHtml(person.notes) || '—') + '</td>';
         tbody.appendChild(row);
     });
 }
