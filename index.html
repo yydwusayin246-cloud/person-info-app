@@ -34,6 +34,8 @@
                 <button class="nav-btn active" data-screen="input">➕ 输入</button>
                 <button class="nav-btn" data-screen="list">📋 列表</button>
                 <button class="nav-btn" data-screen="search">🔍 搜索</button>
+                <button id="backup-btn" class="nav-btn nav-btn-backup" onclick="exportData()">💾 备份</button>
+                <button id="restore-btn" class="nav-btn nav-btn-restore" onclick="triggerImport()">📥 恢复</button>
                 <button id="install-btn" class="nav-btn" style="display: none; background: #4CAF50;">⬇️ 安装</button>
             </div>
         </nav>
@@ -273,6 +275,9 @@
             </div>
         </div>
     </div>
+
+    <!-- 隐藏的文件导入 input -->
+    <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="importData(event)">
 
     <script src="app.js"></script>
     
