@@ -442,13 +442,33 @@ function importData(event) {
                     alert('✅ 数据已替换！共导入 ' + count + ' 条记录。');
                 } else if (mode === 'merge') {
                     var existing = getPeople();
-                    // 按姓名+年龄判断重复
-                    var newItems = importObj.data.filter(function(p) {
-                        return !existing.some(function(e) {
-                            return e.name === p.name && e.age === p.age;
-                        });
+                    var existingCopy = existing.slice(); // 浅拷贝用于修改
+                    var newItems = [];
+
+                    importObj.data.forEach(function(p) {
+                        var matchIdx = -1;
+                        for (var i = 0; i < existingCopy.length; i++) {
+                            if (existingCopy[i].name === p.name && existingCopy[i].age === p.age) {
+                                matchIdx = i; break;
+                            }
+                        }
+                        if (matchIdx === -1) {
+                            // 无匹配 → 新增
+                            newItems.push(p);
+                        } else {
+                            // 匹配到 → 保留信息更丰富的那条
+                            var e = existingCopy[matchIdx];
+                            var eFilled = (e.shopLevel ? 1 : 0) + (e.skillLevel ? 1 : 0) + (e.willingness ? 1 : 0) + (e.followStatus ? 1 : 0) + (e.notes ? 1 : 0);
+                            var pFilled = (p.shopLevel ? 1 : 0) + (p.skillLevel ? 1 : 0) + (p.willingness ? 1 : 0) + (p.followStatus ? 1 : 0) + (p.notes ? 1 : 0);
+                            if (pFilled > eFilled) {
+                                // 备份信息更丰富 → 用它替换
+                                existingCopy[matchIdx] = p;
+                            }
+                            // 否则保留原有
+                        }
                     });
-                    var merged = existing.concat(newItems);
+
+                    var merged = existingCopy.concat(newItems);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
                     alert('✅ 数据已合并！新增 ' + newItems.length + ' 条记录（共 ' + merged.length + ' 条）。');
                 }
@@ -474,7 +494,7 @@ function showImportModal(count, dateStr, callback) {
     var btnMerge = document.getElementById('modal-merge');
     var btnCancel = document.getElementById('modal-cancel');
 
-    body.textContent = '备份时间：' + dateStr + '\n记录数量：' + count + ' 条\n\n替换：清空当前数据，用备份覆盖\n合并：保留现有数据，按姓名+年龄去重后新增';
+    body.textContent = '备份时间：' + dateStr + '\n记录数量：' + count + ' 条\n\n替换：清空当前数据，用备份覆盖\n合并：按姓名+年龄匹配，保留信息更丰富的那条';
 
     modal.style.display = 'flex';
 
