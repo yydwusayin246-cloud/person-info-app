@@ -80,13 +80,21 @@ function setupFormHandler() {
 
         if (!validatePerson(person)) return;
 
+        // 新记录添加创建时间，编辑保留原时间
+        if (!isEdit) {
+            person.createdAt = new Date().toISOString();
+        } else {
+            var existing = getPeople().find(function(p) { return p.id === personId; });
+            person.createdAt = existing ? existing.createdAt : new Date().toISOString();
+        }
+
         savePerson(person);
         form.reset();
         if (isEdit) delete form.dataset.editId;
 
         alert(isEdit ? '✅ 信息已更新！' : '✅ 信息已保存！');
 
-        setTimeout(() => {
+        setTimeout(function() {
             document.querySelector('[data-screen="list"]').click();
         }, 500);
     });
@@ -113,29 +121,44 @@ function getSortedPeople() {
     let people = getPeople();
     if (!currentSort.field || !currentSort.order) return people;
 
-    const orderMap = currentSort.field === 'age' ? AGE_ORDER : WILLINGNESS_ORDER;
-    const field = currentSort.field;
-    const multiplier = currentSort.order === 'asc' ? 1 : -1;
+    var field = currentSort.field;
+    var multiplier = currentSort.order === 'asc' ? 1 : -1;
 
-    return [...people].sort((a, b) => {
-        const va = orderMap[a[field]] ?? 99;
-        const vb = orderMap[b[field]] ?? 99;
+    if (field === 'time') {
+        // 时间排序：直接用 ISO 字符串比较
+        return [...people].sort(function(a, b) {
+            var ta = a.createdAt || '';
+            var tb = b.createdAt || '';
+            if (ta < tb) return -1 * multiplier;
+            if (ta > tb) return 1 * multiplier;
+            return 0;
+        });
+    }
+
+    var orderMap = field === 'age' ? AGE_ORDER : WILLINGNESS_ORDER;
+
+    return [...people].sort(function(a, b) {
+        var va = orderMap[a[field]] ?? 99;
+        var vb = orderMap[b[field]] ?? 99;
         return (va - vb) * multiplier;
     });
 }
 
 function updateSortArrows() {
-    const ageArrow = document.getElementById('sort-age');
-    const willArrow = document.getElementById('sort-willingness');
-    const sortInfo = document.getElementById('sort-info');
+    var ageArrow = document.getElementById('sort-age');
+    var willArrow = document.getElementById('sort-willingness');
+    var timeArrow = document.getElementById('sort-time');
+    var sortInfo = document.getElementById('sort-info');
 
     if (ageArrow) ageArrow.textContent = currentSort.field === 'age' ? (currentSort.order === 'asc' ? ' ▲' : ' ▼') : '';
     if (willArrow) willArrow.textContent = currentSort.field === 'willingness' ? (currentSort.order === 'asc' ? ' ▲' : ' ▼') : '';
+    if (timeArrow) timeArrow.textContent = currentSort.field === 'time' ? (currentSort.order === 'asc' ? ' ▲' : ' ▼') : '';
 
     if (sortInfo) {
         if (currentSort.field && currentSort.order) {
-            const label = currentSort.field === 'age' ? '年龄' : '意愿';
-            const dir = currentSort.order === 'asc' ? '↑顺序' : '↓倒序';
+            var labelMap = { age: '年龄', willingness: '意愿', time: '时间' };
+            var label = labelMap[currentSort.field] || currentSort.field;
+            var dir = currentSort.order === 'asc' ? '↑顺序' : '↓倒序';
             sortInfo.textContent = ' | 按' + label + dir;
         } else {
             sortInfo.textContent = '';
@@ -160,6 +183,21 @@ function escHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// 格式化时间显示
+function formatTime(isoStr) {
+    if (!isoStr) return '—';
+    try {
+        var d = new Date(isoStr);
+        var month = ('0' + (d.getMonth() + 1)).slice(-2);
+        var day = ('0' + d.getDate()).slice(-2);
+        var hours = ('0' + d.getHours()).slice(-2);
+        var mins = ('0' + d.getMinutes()).slice(-2);
+        return d.getFullYear() + '-' + month + '-' + day + ' ' + hours + ':' + mins;
+    } catch(e) {
+        return '—';
+    }
+}
+
 // ==================== 列表 & CRUD ====================
 
 function refreshList() {
@@ -171,7 +209,7 @@ function refreshList() {
     updateSortArrows();
 
     if (people.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="empty-message">暂无数据，请先在「输入信息」页面添加</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="empty-message">暂无数据，请先在「输入信息」页面添加</td></tr>';
         return;
     }
 
@@ -191,6 +229,7 @@ function refreshList() {
             '<td>' + (escHtml(person.wechat) || '—') + '</td>' +
             '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
             '<td class="notes-cell" title="' + escHtml(person.notes || '') + '">' + notesShort + '</td>' +
+            '<td class="time-cell">' + formatTime(person.createdAt) + '</td>' +
             '<td>' +
                 '<div class="actions">' +
                     '<button class="btn btn-edit" onclick="editPerson(' + person.id + ')">✏️</button>' +
@@ -225,8 +264,7 @@ function migrateData() {
     var changed = false;
     people.forEach(function(p) {
         if (p.followStatus === undefined) { p.followStatus = ''; changed = true; }
-        if (p.notes === undefined) { p.notes = ''; changed = true; }
-    });
+        if (p.notes === undefined) { p.notes = ''; changed = true; }        if (p.createdAt === undefined) { p.createdAt = new Date().toISOString(); changed = true; }    });
 
     if (changed) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(people));
@@ -351,7 +389,8 @@ function displaySearchResults(results) {
             '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
             '<td>' + (escHtml(person.wechat) || '—') + '</td>' +
             '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
-            '<td class="notes-cell">' + (escHtml(person.notes) || '—') + '</td>';
+            '<td class="notes-cell">' + (escHtml(person.notes) || '—') + '</td>' +
+            '<td class="time-cell">' + formatTime(person.createdAt) + '</td>';
         tbody.appendChild(row);
     });
 

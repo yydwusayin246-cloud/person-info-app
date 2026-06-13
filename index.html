@@ -157,12 +157,13 @@
                                 <th>微信</th>
                                 <th>跟进状态</th>
                                 <th>备注</th>
+                                <th class="sortable" onclick="toggleSort('time')">时间 <span class="sort-arrow" id="sort-time"></span></th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="table-body">
                             <tr>
-                                <td colspan="11" class="empty-message">暂无数据</td>
+                                <td colspan="12" class="empty-message">暂无数据</td>
                             </tr>
                         </tbody>
                     </table>
@@ -262,6 +263,7 @@
                                     <th>微信</th>
                                     <th>跟进状态</th>
                                     <th>备注</th>
+                                    <th>时间</th>
                                 </tr>
                             </thead>
                             <tbody id="search-table-body">

@@ -391,6 +391,13 @@ html, body {
     color: #666;
 }
 
+/* 时间列 */
+.time-cell {
+    font-size: 11px;
+    color: #999;
+    white-space: nowrap;
+}
+
 .filter-actions {
     display: flex;
     gap: 15px;
