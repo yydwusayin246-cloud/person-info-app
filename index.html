@@ -34,8 +34,6 @@
                 <button class="nav-btn active" data-screen="input">➕ 输入</button>
                 <button class="nav-btn" data-screen="list">📋 列表</button>
                 <button class="nav-btn" data-screen="search">🔍 搜索</button>
-                <button id="backup-btn" class="nav-btn nav-btn-backup" onclick="exportData()">💾 备份</button>
-                <button id="restore-btn" class="nav-btn nav-btn-restore" onclick="triggerImport()">📥 恢复</button>
                 <button id="install-btn" class="nav-btn" style="display: none; background: #4CAF50;">⬇️ 安装</button>
             </div>
         </nav>
@@ -113,6 +111,22 @@
                         <input type="text" id="wechat" name="wechat" placeholder="请输入微信名称">
                     </div>
 
+                    <div class="form-group">
+                        <label for="follow-status">跟进状态</label>
+                        <select id="follow-status" name="follow-status">
+                            <option value="">选择跟进状态...</option>
+                            <option value="未联系">未联系</option>
+                            <option value="已联系意向低">已联系意向低</option>
+                            <option value="沟通中">沟通中</option>
+                            <option value="已签约">已签约</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">备注</label>
+                        <textarea id="notes" name="notes" rows="3" placeholder="自由填写备注信息..."></textarea>
+                    </div>
+
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">✅ 保存</button>
                         <button type="reset" class="btn btn-secondary">🔄 清空</button>
@@ -125,6 +139,7 @@
                 <h2>📋 信息总览</h2>
                 <div id="list-stats" class="stats-bar">
                     总人数: <span id="total-count">0</span>
+                    <span class="sort-indicator" id="sort-info"></span>
                 </div>
                 <div class="table-wrapper">
                     <table id="data-table" class="data-table">
@@ -134,16 +149,18 @@
                                 <th>姓名</th>
                                 <th>店铺</th>
                                 <th>熟练度</th>
-                                <th>年龄</th>
+                                <th class="sortable" onclick="toggleSort('age')">年龄 <span class="sort-arrow" id="sort-age"></span></th>
                                 <th>性格</th>
-                                <th>意愿</th>
+                                <th class="sortable" onclick="toggleSort('willingness')">意愿 <span class="sort-arrow" id="sort-willingness"></span></th>
                                 <th>微信</th>
+                                <th>跟进状态</th>
+                                <th>备注</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="table-body">
                             <tr>
-                                <td colspan="9" class="empty-message">暂无数据</td>
+                                <td colspan="11" class="empty-message">暂无数据</td>
                             </tr>
                         </tbody>
                     </table>
@@ -160,60 +177,65 @@
                     </div>
 
                     <div class="filter-group">
-                        <label for="search-age">按年龄搜索</label>
-                        <select id="search-age">
-                            <option value="">所有年龄段</option>
-                            <option value="30以下">30以下</option>
-                            <option value="30-40">30-40</option>
-                            <option value="40-50">40-50</option>
-                            <option value="50-60">50-60</option>
-                            <option value="60-70">60-70</option>
-                            <option value="70及以上">70及以上</option>
-                        </select>
+                        <label>按年龄筛选（可多选）</label>
+                        <div class="checkbox-group" id="search-age-group">
+                            <label class="checkbox-label"><input type="checkbox" value="30以下"> 30以下</label>
+                            <label class="checkbox-label"><input type="checkbox" value="30-40"> 30-40</label>
+                            <label class="checkbox-label"><input type="checkbox" value="40-50"> 40-50</label>
+                            <label class="checkbox-label"><input type="checkbox" value="50-60"> 50-60</label>
+                            <label class="checkbox-label"><input type="checkbox" value="60-70"> 60-70</label>
+                            <label class="checkbox-label"><input type="checkbox" value="70及以上"> 70及以上</label>
+                        </div>
                     </div>
 
                     <div class="filter-group">
-                        <label for="search-shop">按店铺挡位搜索</label>
-                        <select id="search-shop">
-                            <option value="">所有店铺挡位</option>
-                            <option value="3000以下">3000以下</option>
-                            <option value="3000-5000">3000-5000</option>
-                            <option value="6000-9000">6000-9000</option>
-                            <option value="10000及以上">10000及以上</option>
-                        </select>
+                        <label>按店铺挡位筛选（可多选）</label>
+                        <div class="checkbox-group" id="search-shop-group">
+                            <label class="checkbox-label"><input type="checkbox" value="3000以下"> 3000以下</label>
+                            <label class="checkbox-label"><input type="checkbox" value="3000-5000"> 3000-5000</label>
+                            <label class="checkbox-label"><input type="checkbox" value="6000-9000"> 6000-9000</label>
+                            <label class="checkbox-label"><input type="checkbox" value="10000及以上"> 10000及以上</label>
+                        </div>
                     </div>
 
                     <div class="filter-group">
-                        <label for="search-skill">按熟练程度搜索</label>
-                        <select id="search-skill">
-                            <option value="">所有熟练程度</option>
-                            <option value="小白">小白</option>
-                            <option value="略熟悉">略熟悉</option>
-                            <option value="老手">老手</option>
-                        </select>
+                        <label>按熟练程度筛选（可多选）</label>
+                        <div class="checkbox-group" id="search-skill-group">
+                            <label class="checkbox-label"><input type="checkbox" value="小白"> 小白</label>
+                            <label class="checkbox-label"><input type="checkbox" value="略熟悉"> 略熟悉</label>
+                            <label class="checkbox-label"><input type="checkbox" value="老手"> 老手</label>
+                        </div>
                     </div>
 
                     <div class="filter-group">
-                        <label for="search-personality">按性格搜索</label>
-                        <select id="search-personality">
-                            <option value="">所有性格</option>
-                            <option value="温和">温和</option>
-                            <option value="普通">普通</option>
-                            <option value="冷淡">冷淡</option>
-                            <option value="急躁">急躁</option>
-                        </select>
+                        <label>按性格筛选（可多选）</label>
+                        <div class="checkbox-group" id="search-personality-group">
+                            <label class="checkbox-label"><input type="checkbox" value="温和"> 温和</label>
+                            <label class="checkbox-label"><input type="checkbox" value="普通"> 普通</label>
+                            <label class="checkbox-label"><input type="checkbox" value="冷淡"> 冷淡</label>
+                            <label class="checkbox-label"><input type="checkbox" value="急躁"> 急躁</label>
+                        </div>
                     </div>
 
                     <div class="filter-group">
-                        <label for="search-willingness">按意愿程度搜索</label>
-                        <select id="search-willingness">
-                            <option value="">所有意愿程度</option>
-                            <option value="非常低">非常低</option>
-                            <option value="较低">较低</option>
-                            <option value="一般">一般</option>
-                            <option value="较高">较高</option>
-                            <option value="非常高">非常高</option>
-                        </select>
+                        <label>按意愿程度筛选（可多选）</label>
+                        <div class="checkbox-group" id="search-willingness-group">
+                            <label class="checkbox-label"><input type="checkbox" value="非常低"> 非常低</label>
+                            <label class="checkbox-label"><input type="checkbox" value="较低"> 较低</label>
+                            <label class="checkbox-label"><input type="checkbox" value="一般"> 一般</label>
+                            <label class="checkbox-label"><input type="checkbox" value="较高"> 较高</label>
+                            <label class="checkbox-label"><input type="checkbox" value="非常高"> 非常高</label>
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>按跟进状态筛选（可多选）</label>
+                        <div class="checkbox-group" id="search-status-group">
+                            <label class="checkbox-label"><input type="checkbox" value="未联系"> 未联系</label>
+                            <label class="checkbox-label"><input type="checkbox" value="已联系意向低"> 已联系意向低</label>
+                            <label class="checkbox-label"><input type="checkbox" value="沟通中"> 沟通中</label>
+                            <label class="checkbox-label"><input type="checkbox" value="已签约"> 已签约</label>
+                        </div>
                     </div>
 
                     <div class="filter-actions">
@@ -236,6 +258,8 @@
                                     <th>性格</th>
                                     <th>意愿</th>
                                     <th>微信</th>
+                                    <th>跟进状态</th>
+                                    <th>备注</th>
                                 </tr>
                             </thead>
                             <tbody id="search-table-body">
@@ -249,9 +273,6 @@
             </div>
         </div>
     </div>
-
-    <!-- 隐藏的文件导入 input -->
-    <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="importData(event)">
 
     <script src="app.js"></script>
     

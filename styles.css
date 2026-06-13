@@ -78,30 +78,6 @@ html, body {
     font-weight: 600;
 }
 
-/* 备份按钮特殊样式 */
-.nav-btn-backup {
-    background: rgba(255, 193, 7, 0.5);
-    border-color: rgba(255, 193, 7, 0.3);
-    flex: 0.8;
-    min-width: 50px;
-}
-
-.nav-btn-backup:hover {
-    background: rgba(255, 193, 7, 0.7);
-}
-
-/* 恢复按钮特殊样式 */
-.nav-btn-restore {
-    background: rgba(76, 175, 80, 0.5);
-    border-color: rgba(76, 175, 80, 0.3);
-    flex: 0.8;
-    min-width: 50px;
-}
-
-.nav-btn-restore:hover {
-    background: rgba(76, 175, 80, 0.7);
-}
-
 /* ===== 内容区域 ===== */
 .content-area {
     flex: 1;
@@ -182,6 +158,11 @@ html, body {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+.form-group textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
 .form-actions {
     display: flex;
     gap: 15px;
@@ -222,12 +203,25 @@ html, body {
 .btn-danger {
     background: #ff6b6b;
     color: white;
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 5px 8px;
+    font-size: 11px;
+    border-radius: 4px;
 }
 
 .btn-danger:hover {
     background: #ff5252;
+}
+
+.btn-edit {
+    background: #667eea;
+    color: white;
+    padding: 5px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+}
+
+.btn-edit:hover {
+    background: #5a6fd6;
 }
 
 /* ===== 统计条 ===== */
@@ -270,6 +264,27 @@ html, body {
     font-weight: 600;
     color: #333;
     white-space: nowrap;
+}
+
+.data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.data-table th.sortable:hover {
+    background: #e8e8e8;
+}
+
+.sort-arrow {
+    font-size: 11px;
+    color: #667eea;
+}
+
+.sort-indicator {
+    font-size: 13px;
+    font-weight: normal;
+    color: #667eea;
 }
 
 .data-table td {
@@ -317,6 +332,63 @@ html, body {
     border: 1px solid #ddd;
     border-radius: 5px;
     font-size: 14px;
+}
+
+/* 多选复选框组 */
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.checkbox-label {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    background: #f0f0f0;
+    padding: 6px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: normal !important;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 0 !important;
+    white-space: nowrap;
+}
+
+.checkbox-label:hover {
+    background: #e0e0ff;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: #667eea;
+}
+
+/* 跟进状态徽章 */
+.status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-gray { background: #e0e0e0; color: #555; }
+.status-orange { background: #fff3e0; color: #e65100; }
+.status-blue { background: #e3f2fd; color: #1565c0; }
+.status-green { background: #e8f5e9; color: #2e7d32; }
+
+/* 备注列 */
+.notes-cell {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: #666;
 }
 
 .filter-actions {
