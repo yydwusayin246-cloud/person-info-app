@@ -370,7 +370,7 @@ function exportData() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    alert('✅ 备份成功！文件已下载（' + people.length + ' 条记录）\n\n💡 请将文件保存到安全的位置，如：\n  - 手机"文件管理"文件夹\n  - 发送到微信"文件传输助手"\n  - 保存到云盘');
+    alert('✅ 备份成功！文件已下载（' + people.length + ' 条记录）\n\n💡 请将文件保存到安全的位置，如：\n  - 手机「文件管理」文件夹\n  - 发送到微信「文件传输助手」\n  - 保存到云盘');
 }
 
 function importData(event) {
@@ -382,7 +382,7 @@ function importData(event) {
         try {
             const importObj = JSON.parse(e.target.result);
             if (!importObj.data || !Array.isArray(importObj.data)) {
-                alert('❌ 文件格式不正确！请选择通过"💾 备份"功能导出的 JSON 文件。');
+                alert('❌ 文件格式不正确！请选择通过「💾 备份」功能导出的 JSON 文件。');
                 return;
             }
 
