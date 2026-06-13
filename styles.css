@@ -90,6 +90,18 @@ html, body {
     background: rgba(255, 193, 7, 0.7);
 }
 
+/* 恢复按钮特殊样式 */
+.nav-btn-restore {
+    background: rgba(76, 175, 80, 0.5);
+    border-color: rgba(76, 175, 80, 0.3);
+    flex: 0.8;
+    min-width: 50px;
+}
+
+.nav-btn-restore:hover {
+    background: rgba(76, 175, 80, 0.7);
+}
+
 /* ===== 内容区域 ===== */
 .content-area {
     flex: 1;

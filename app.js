@@ -459,3 +459,8 @@ function importData(event) {
     // 清空 input，允许重复选择同一文件
     event.target.value = '';
 }
+
+// 触发文件选择框（由"📥 恢复"按钮调用）
+function triggerImport() {
+    document.getElementById('import-file-input').click();
+}
