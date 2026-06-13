@@ -13,6 +13,12 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- 更新提示横幅 -->
+    <div id="update-banner" style="display:none;">
+        <span>🔄 新版本可用</span>
+        <button id="update-btn" onclick="doUpdate()">立即更新</button>
+    </div>
+
     <!-- 下载进度提示 -->
     <div id="install-progress" style="display: none !important;">
         <div class="progress-text">
@@ -305,18 +311,26 @@
                     const data = event.data;
                     
                     if (data.type === 'CACHE_PROGRESS') {
-                        console.log(`📦 缓存进度: ${data.progress}%`);
+                        console.log('📦 缓存进度: ' + data.progress + '%');
                         updateProgress(data.progress, data.current, data.total);
                     } else if (data.type === 'CACHE_COMPLETE') {
                         console.log('✅ 缓存完成');
                         updateProgress(100, 5, 5);
                         hideProgress();
+                    } else if (data.type === 'UPDATE_READY') {
+                        // 显示更新提示
+                        var banner = document.getElementById('update-banner');
+                        if (banner) banner.style.display = 'flex';
                     }
                 };
 
+                // 检查是否有更新
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
                         console.log('✅ Service Worker 注册成功');
+                        registration.addEventListener('updatefound', () => {
+                            console.log('🔄 发现新版本，正在下载...');
+                        });
                     })
                     .catch(error => {
                         console.log('⚠️ Service Worker 注册失败');
@@ -357,6 +371,14 @@
             console.log('✅ PWA 已安装');
             hideProgress();
         });
+
+        // 执行更新：重新加载页面
+        function doUpdate() {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+            }
+            window.location.reload();
+        }
     </script>
 </body>
 </html>
