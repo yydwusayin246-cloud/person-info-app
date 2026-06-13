@@ -50,37 +50,66 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="shop-level">店铺挡位</label>
-                        <input type="text" id="shop-level" name="shop-level" placeholder="如：高档、中档、低档">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="skill-level">行业熟练程度</label>
-                        <select id="skill-level" name="skill-level">
-                            <option value="">选择熟练程度...</option>
-                            <option value="初级">初级</option>
-                            <option value="中级">中级</option>
-                            <option value="高级">高级</option>
-                            <option value="专家">专家</option>
+                        <label for="shop-level">店铺挡位 *</label>
+                        <select id="shop-level" name="shop-level" required>
+                            <option value="">选择店铺挡位...</option>
+                            <option value="3000以下">3000以下</option>
+                            <option value="3000-5000">3000-5000</option>
+                            <option value="6000-9000">6000-9000</option>
+                            <option value="10000及以上">10000及以上</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="age">年龄</label>
-                        <input type="number" id="age" name="age" min="1" max="120" placeholder="请输入年龄">
+                        <label for="skill-level">行业熟练程度 *</label>
+                        <select id="skill-level" name="skill-level" required>
+                            <option value="">选择熟练程度...</option>
+                            <option value="小白">小白</option>
+                            <option value="略熟悉">略熟悉</option>
+                            <option value="老手">老手</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="personality">性格特点</label>
-                        <textarea id="personality" name="personality" rows="3" placeholder="如：性格开朗、善于沟通..."></textarea>
+                        <label for="age">年龄 *</label>
+                        <select id="age" name="age" required>
+                            <option value="">选择年龄段...</option>
+                            <option value="30以下">30以下</option>
+                            <option value="30-40">30-40</option>
+                            <option value="40-50">40-50</option>
+                            <option value="50-60">50-60</option>
+                            <option value="60-70">60-70</option>
+                            <option value="70及以上">70及以上</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="willingness">意愿程度</label>
-                        <div class="slider-group">
-                            <input type="range" id="willingness" name="willingness" min="0" max="100" value="50">
-                            <span class="slider-value" id="willingness-value">50%</span>
-                        </div>
+                        <label for="personality">性格特点 *</label>
+                        <select id="personality" name="personality" required>
+                            <option value="">选择性格...</option>
+                            <option value="开朗">开朗</option>
+                            <option value="沉稳">沉稳</option>
+                            <option value="内向">内向</option>
+                            <option value="外向">外向</option>
+                            <option value="细心">细心</option>
+                            <option value="豪爽">豪爽</option>
+                            <option value="温和">温和</option>
+                            <option value="急躁">急躁</option>
+                            <option value="谨慎">谨慎</option>
+                            <option value="乐观">乐观</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="willingness">意愿程度 *</label>
+                        <select id="willingness" name="willingness" required>
+                            <option value="">选择意愿程度...</option>
+                            <option value="非常低">非常低</option>
+                            <option value="较低">较低</option>
+                            <option value="一般">一般</option>
+                            <option value="较高">较高</option>
+                            <option value="非常高">非常高</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -136,22 +165,64 @@
 
                     <div class="filter-group">
                         <label for="search-age">按年龄搜索</label>
-                        <input type="number" id="search-age" min="1" max="120" placeholder="输入年龄">
+                        <select id="search-age">
+                            <option value="">所有年龄段</option>
+                            <option value="30以下">30以下</option>
+                            <option value="30-40">30-40</option>
+                            <option value="40-50">40-50</option>
+                            <option value="50-60">50-60</option>
+                            <option value="60-70">60-70</option>
+                            <option value="70及以上">70及以上</option>
+                        </select>
                     </div>
 
                     <div class="filter-group">
                         <label for="search-shop">按店铺挡位搜索</label>
-                        <input type="text" id="search-shop" placeholder="输入店铺挡位">
+                        <select id="search-shop">
+                            <option value="">所有店铺挡位</option>
+                            <option value="3000以下">3000以下</option>
+                            <option value="3000-5000">3000-5000</option>
+                            <option value="6000-9000">6000-9000</option>
+                            <option value="10000及以上">10000及以上</option>
+                        </select>
                     </div>
 
                     <div class="filter-group">
                         <label for="search-skill">按熟练程度搜索</label>
                         <select id="search-skill">
                             <option value="">所有熟练程度</option>
-                            <option value="初级">初级</option>
-                            <option value="中级">中级</option>
-                            <option value="高级">高级</option>
-                            <option value="专家">专家</option>
+                            <option value="小白">小白</option>
+                            <option value="略熟悉">略熟悉</option>
+                            <option value="老手">老手</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="search-personality">按性格搜索</label>
+                        <select id="search-personality">
+                            <option value="">所有性格</option>
+                            <option value="开朗">开朗</option>
+                            <option value="沉稳">沉稳</option>
+                            <option value="内向">内向</option>
+                            <option value="外向">外向</option>
+                            <option value="细心">细心</option>
+                            <option value="豪爽">豪爽</option>
+                            <option value="温和">温和</option>
+                            <option value="急躁">急躁</option>
+                            <option value="谨慎">谨慎</option>
+                            <option value="乐观">乐观</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="search-willingness">按意愿程度搜索</label>
+                        <select id="search-willingness">
+                            <option value="">所有意愿程度</option>
+                            <option value="非常低">非常低</option>
+                            <option value="较低">较低</option>
+                            <option value="一般">一般</option>
+                            <option value="较高">较高</option>
+                            <option value="非常高">非常高</option>
                         </select>
                     </div>
 

@@ -158,26 +158,6 @@ html, body {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.slider-group {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-#willingness {
-    flex: 1;
-    cursor: pointer;
-}
-
-.slider-value {
-    min-width: 50px;
-    background: #667eea;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-weight: 600;
-}
-
 .form-actions {
     display: flex;
     gap: 15px;

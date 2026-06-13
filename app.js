@@ -14,9 +14,6 @@ function initializeApp() {
     // 设置表单提交
     setupFormHandler();
 
-    // 设置意愿程度滑块
-    setupWillingnessSlider();
-
     // 设置搜索功能
     setupSearchHandler();
 
@@ -58,10 +55,10 @@ function setupFormHandler() {
         const person = {
             id: Date.now(),
             name: document.getElementById('name').value.trim(),
-            shopLevel: document.getElementById('shop-level').value.trim(),
+            shopLevel: document.getElementById('shop-level').value,
             skillLevel: document.getElementById('skill-level').value,
             age: document.getElementById('age').value,
-            personality: document.getElementById('personality').value.trim(),
+            personality: document.getElementById('personality').value,
             willingness: document.getElementById('willingness').value,
             wechat: document.getElementById('wechat').value.trim(),
         };
@@ -71,13 +68,32 @@ function setupFormHandler() {
             alert('请输入姓名！');
             return;
         }
+        if (!person.shopLevel) {
+            alert('请选择店铺挡位！');
+            return;
+        }
+        if (!person.skillLevel) {
+            alert('请选择行业熟练程度！');
+            return;
+        }
+        if (!person.age) {
+            alert('请选择年龄！');
+            return;
+        }
+        if (!person.personality) {
+            alert('请选择性格特点！');
+            return;
+        }
+        if (!person.willingness) {
+            alert('请选择意愿程度！');
+            return;
+        }
 
         // 保存数据
         savePerson(person);
 
         // 重置表单
         form.reset();
-        document.getElementById('willingness-value').textContent = '50%';
 
         // 显示成功消息
         alert('✅ 信息已保存！');
@@ -89,17 +105,7 @@ function setupFormHandler() {
     });
 }
 
-// 设置意愿程度滑块
-function setupWillingnessSlider() {
-    const slider = document.getElementById('willingness');
-    const valueDisplay = document.getElementById('willingness-value');
-
-    slider.addEventListener('input', (e) => {
-        valueDisplay.textContent = e.target.value + '%';
-    });
-}
-
-// 设置搜索功能
+// 执行搜索
 function setupSearchHandler() {
     const searchBtn = document.getElementById('search-btn');
     const clearBtn = document.getElementById('clear-search-btn');
@@ -111,9 +117,11 @@ function setupSearchHandler() {
 // 执行搜索
 function performSearch() {
     const name = document.getElementById('search-name').value.trim().toLowerCase();
-    const age = document.getElementById('search-age').value.trim();
-    const shop = document.getElementById('search-shop').value.trim().toLowerCase();
+    const age = document.getElementById('search-age').value;
+    const shop = document.getElementById('search-shop').value;
     const skill = document.getElementById('search-skill').value;
+    const personality = document.getElementById('search-personality').value;
+    const willingness = document.getElementById('search-willingness').value;
 
     const people = getPeople();
     let results = people;
@@ -130,12 +138,22 @@ function performSearch() {
 
     // 按店铺挡位过滤
     if (shop) {
-        results = results.filter(p => p.shopLevel.toLowerCase().includes(shop));
+        results = results.filter(p => p.shopLevel === shop);
     }
 
     // 按行业熟练程度过滤
     if (skill) {
         results = results.filter(p => p.skillLevel === skill);
+    }
+
+    // 按性格过滤
+    if (personality) {
+        results = results.filter(p => p.personality === personality);
+    }
+
+    // 按意愿程度过滤
+    if (willingness) {
+        results = results.filter(p => p.willingness === willingness);
     }
 
     // 显示搜索结果
@@ -148,6 +166,8 @@ function clearSearchFilters() {
     document.getElementById('search-age').value = '';
     document.getElementById('search-shop').value = '';
     document.getElementById('search-skill').value = '';
+    document.getElementById('search-personality').value = '';
+    document.getElementById('search-willingness').value = '';
 
     document.getElementById('search-results').style.display = 'none';
     document.getElementById('no-results').style.display = 'none';
@@ -181,7 +201,7 @@ function displaySearchResults(results) {
             <td>${person.skillLevel || '—'}</td>
             <td>${person.age || '—'}</td>
             <td>${person.personality || '—'}</td>
-            <td>${person.willingness}%</td>
+            <td>${person.willingness || '—'}</td>
             <td>${person.wechat || '—'}</td>
         `;
         tbody.appendChild(row);
@@ -211,7 +231,7 @@ function refreshList() {
             <td>${person.skillLevel || '—'}</td>
             <td>${person.age || '—'}</td>
             <td>${person.personality || '—'}</td>
-            <td>${person.willingness}%</td>
+            <td>${person.willingness || '—'}</td>
             <td>${person.wechat || '—'}</td>
             <td>
                 <div class="actions">
@@ -279,9 +299,6 @@ function editPerson(id) {
     document.getElementById('willingness').value = person.willingness;
     document.getElementById('wechat').value = person.wechat;
 
-    // 更新滑块显示
-    document.getElementById('willingness-value').textContent = person.willingness + '%';
-
     // 修改表单提交按钮
     const form = document.getElementById('input-form');
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -310,10 +327,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const person = {
                 id: personId,
                 name: document.getElementById('name').value.trim(),
-                shopLevel: document.getElementById('shop-level').value.trim(),
+                shopLevel: document.getElementById('shop-level').value,
                 skillLevel: document.getElementById('skill-level').value,
                 age: document.getElementById('age').value,
-                personality: document.getElementById('personality').value.trim(),
+                personality: document.getElementById('personality').value,
                 willingness: document.getElementById('willingness').value,
                 wechat: document.getElementById('wechat').value.trim(),
             };
@@ -322,11 +339,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('请输入姓名！');
                 return;
             }
+            if (!person.shopLevel) {
+                alert('请选择店铺挡位！');
+                return;
+            }
+            if (!person.skillLevel) {
+                alert('请选择行业熟练程度！');
+                return;
+            }
+            if (!person.age) {
+                alert('请选择年龄！');
+                return;
+            }
+            if (!person.personality) {
+                alert('请选择性格特点！');
+                return;
+            }
+            if (!person.willingness) {
+                alert('请选择意愿程度！');
+                return;
+            }
 
             savePerson(person);
             form.reset();
             delete form.dataset.editId;
-            document.getElementById('willingness-value').textContent = '50%';
 
             alert('✅ 信息已更新！');
 
