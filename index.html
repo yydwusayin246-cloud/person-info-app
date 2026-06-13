@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="功能完整的人员信息管理应用，支持添加、查看和搜索人员信息">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="人员管理">
+    
+    <title>人员信息管理系统</title>
+    <style>
+        #install-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #install-progress.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+            }
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: white;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 下载进度提示 -->
+    <div id="install-progress">
+        <div class="progress-text">
+            📥 <span id="progress-status">正在缓存应用文件到你的手机...</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div style="font-size: 12px; margin-top: 5px;">
+            <span id="progress-percent">0%</span> - <span id="progress-info">准备中...</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-brand">👥 人员信息管理</div>
+            <div class="nav-links">
+                <button class="nav-btn active" data-screen="input">➕ 输入信息</button>
+                <button class="nav-btn" data-screen="list">📋 信息列表</button>
+                <button class="nav-btn" data-screen="search">🔍 搜索信息</button>
+                <button id="install-btn" class="nav-btn" style="display: none; background: #4CAF50;">⬇️ 安装应用</button>
+            </div>
+        </nav>
+
+        <!-- 屏幕1: 输入界面 -->
+        <div id="input-screen" class="screen active">
+            <div class="screen-content">
+                <h2>📝 输入人员信息</h2>
+                <form id="input-form">
+                    <div class="form-group">
+                        <label for="name">姓名 *</label>
+                        <input type="text" id="name" name="name" required placeholder="请输入姓名">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="shop-level">店铺挡位</label>
+                        <input type="text" id="shop-level" name="shop-level" placeholder="如：高档、中档、低档">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="skill-level">行业熟练程度</label>
+                        <select id="skill-level" name="skill-level">
+                            <option value="">选择熟练程度...</option>
+                            <option value="初级">初级</option>
+                            <option value="中级">中级</option>
+                            <option value="高级">高级</option>
+                            <option value="专家">专家</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="age">年龄</label>
+                        <input type="number" id="age" name="age" min="1" max="120" placeholder="请输入年龄">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="personality">性格特点</label>
+                        <textarea id="personality" name="personality" rows="3" placeholder="如：性格开朗、善于沟通..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="willingness">意愿程度</label>
+                        <div class="slider-group">
+                            <input type="range" id="willingness" name="willingness" min="0" max="100" value="50">
+                            <span class="slider-value" id="willingness-value">50%</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="wechat">微信名称</label>
+                        <input type="text" id="wechat" name="wechat" placeholder="请输入微信名称">
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">✅ 保存信息</button>
+                        <button type="reset" class="btn btn-secondary">🔄 清空表单</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 屏幕2: 列表界面 -->
+        <div id="list-screen" class="screen">
+            <div class="screen-content">
+                <h2>📋 信息总览</h2>
+                <div id="list-stats" class="stats-bar">
+                    总人数: <span id="total-count">0</span>
+                </div>
+                <div class="table-wrapper">
+                    <table id="data-table" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>姓名</th>
+                                <th>店铺挡位</th>
+                                <th>行业熟练程度</th>
+                                <th>年龄</th>
+                                <th>性格特点</th>
+                                <th>意愿程度</th>
+                                <th>微信名称</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <tr>
+                                <td colspan="9" class="empty-message">暂无数据，请先在"输入信息"页面添加</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 屏幕3: 搜索界面 -->
+        <div id="search-screen" class="screen">
+            <div class="screen-content">
+                <h2>🔍 搜索信息</h2>
+                <div class="search-filters">
+                    <div class="filter-group">
+                        <label for="search-name">按姓名搜索</label>
+                        <input type="text" id="search-name" placeholder="输入姓名">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="search-age">按年龄搜索</label>
+                        <input type="number" id="search-age" min="1" max="120" placeholder="输入年龄">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="search-shop">按店铺挡位搜索</label>
+                        <input type="text" id="search-shop" placeholder="输入店铺挡位">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="search-skill">按行业熟练程度搜索</label>
+                        <select id="search-skill">
+                            <option value="">所有熟练程度</option>
+                            <option value="初级">初级</option>
+                            <option value="中级">中级</option>
+                            <option value="高级">高级</option>
+                            <option value="专家">专家</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" id="search-btn">🔍 搜索</button>
+                        <button class="btn btn-secondary" id="clear-search-btn">🔄 清空条件</button>
+                    </div>
+                </div>
+
+                <div id="search-results" class="search-results" style="display: none;">
+                    <h3>搜索结果 (<span id="result-count">0</span>)</h3>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>姓名</th>
+                                    <th>店铺挡位</th>
+                                    <th>行业熟练程度</th>
+                                    <th>年龄</th>
+                                    <th>性格特点</th>
+                                    <th>意愿程度</th>
+                                    <th>微信名称</th>
+                                </tr>
+                            </thead>
+                            <tbody id="search-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="no-results" class="message" style="display: none;">
+                    没有找到符合条件的结果
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    
+    <!-- PWA Service Worker 注册 -->
+    <script>
+        // 显示/隐藏进度条
+        function showProgress() {
+            const progressDiv = document.getElementById('install-progress');
+            if (progressDiv) {
+                progressDiv.classList.add('show');
+            }
+        }
+
+        function hideProgress() {
+            const progressDiv = document.getElementById('install-progress');
+            if (progressDiv) {
+                setTimeout(() => {
+                    progressDiv.classList.remove('show');
+                }, 2000); // 2秒后隐藏
+            }
+        }
+
+        // 更新进度条
+        function updateProgress(progress, current, total) {
+            const fill = document.getElementById('progress-fill');
+            const percent = document.getElementById('progress-percent');
+            const info = document.getElementById('progress-info');
+            const status = document.getElementById('progress-status');
+
+            if (fill) fill.style.width = progress + '%';
+            if (percent) percent.textContent = progress + '%';
+            if (info) info.textContent = `${current}/${total} 文件`;
+            
+            if (progress === 100) {
+                if (status) status.textContent = '✅ 应用已完全缓存！现在可以离线使用！';
+            }
+        }
+
+        // 检查浏览器是否支持 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                showProgress();
+
+                // 监听来自 Service Worker 的消息
+                if ('controller' in navigator) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'GET_CACHE_STATUS'
+                    });
+                }
+
+                // 接收来自 Service Worker 的消息
+                navigator.serviceWorker.onmessage = (event) => {
+                    const data = event.data;
+                    
+                    if (data.type === 'CACHE_PROGRESS') {
+                        console.log(`📦 缓存进度: ${data.progress}% (${data.current}/${data.total})`);
+                        updateProgress(data.progress, data.current, data.total);
+                    } else if (data.type === 'CACHE_COMPLETE') {
+                        console.log('✅ 缓存完成:', data.message);
+                        updateProgress(100, 5, 5);
+                        
+                        // 显示完成消息
+                        setTimeout(() => {
+                            hideProgress();
+                            // 可选：显示通知
+                            if ('Notification' in window && Notification.permission === 'granted') {
+                                new Notification('👥 人员管理系统', {
+                                    body: '应用已完全缓存！现在可以离线使用！',
+                                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23667eea" width="100" height="100"/><text x="50" y="50" font-size="60" font-weight="bold" text-anchor="middle" dy=".3em" fill="white">👥</text></svg>'
+                                });
+                            }
+                        }, 500);
+                    }
+                };
+
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker 注册成功:', registration);
+                        
+                        // 检查更新
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'activated') {
+                                    console.log('🔄 应用已更新，请刷新页面');
+                                }
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.log('⚠️ Service Worker 注册失败:', error);
+                        hideProgress();
+                    });
+            });
+        } else {
+            console.log('⚠️ 你的浏览器不支持 Service Worker');
+            hideProgress();
+        }
+
+        // 请求通知权限
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // PWA 安装提示
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // 显示安装按钮
+            if (installBtn) {
+                installBtn.style.display = 'block';
+            }
+            console.log('📱 应用可以安装');
+        });
+
+        if (installBtn) {
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`用户选择: ${outcome}`);
+                    deferredPrompt = null;
+                    installBtn.style.display = 'none';
+                }
+            });
+        }
+
+        window.addEventListener('appinstalled', () => {
+            console.log('✅ PWA 已安装到手机');
+            hideProgress();
+        });
+    </script>
+</body>
+</html>
