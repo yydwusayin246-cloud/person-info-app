@@ -14,7 +14,7 @@
 </head>
 <body>
     <!-- 下载进度提示 -->
-    <div id="install-progress" style="display: none !important;">
+    <div id="install-progress">
         <div class="progress-text">
             📥 <span id="progress-status">正在缓存应用文件到你的手机...</span>
         </div>
@@ -203,7 +203,9 @@
         function hideProgress() {
             const progressDiv = document.getElementById('install-progress');
             if (progressDiv) {
-                progressDiv.classList.remove('show');
+                setTimeout(() => {
+                    progressDiv.classList.remove('show');
+                }, 2000);
             }
         }
 
@@ -241,7 +243,9 @@
                     } else if (data.type === 'CACHE_COMPLETE') {
                         console.log('✅ 缓存完成');
                         updateProgress(100, 5, 5);
-                        hideProgress();
+                        setTimeout(() => {
+                            hideProgress();
+                        }, 500);
                     }
                 };
 
