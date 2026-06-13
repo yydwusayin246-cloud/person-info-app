@@ -253,13 +253,18 @@ function getPeople() {
 
 // 数据迁移：启动时自动给旧记录补上缺少的字段
 function migrateData() {
-    const people = getPeople();
+    var people = getPeople();
     if (people.length === 0) return;
 
     var changed = false;
+    var shopMap = { '3000以下': '3千以下', '3000-5000': '3千-5千', '6000-9000': '6千-9千', '10000及以上': '1万及以上' };
+
     people.forEach(function(p) {
         if (p.followStatus === undefined) { p.followStatus = ''; changed = true; }
-        if (p.notes === undefined) { p.notes = ''; changed = true; }        if (p.createdAt === undefined) { p.createdAt = new Date().toISOString(); changed = true; }    });
+        if (p.notes === undefined) { p.notes = ''; changed = true; }
+        if (p.createdAt === undefined) { p.createdAt = new Date().toISOString(); changed = true; }
+        if (shopMap[p.shopLevel]) { p.shopLevel = shopMap[p.shopLevel]; changed = true; }
+    });
 
     if (changed) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(people));
