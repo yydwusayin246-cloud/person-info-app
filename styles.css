@@ -475,6 +475,115 @@ html, body {
     margin-bottom: 5px;
 }
 
+/* ===== 视图切换按钮 ===== */
+.view-toggle-btn {
+    float: right;
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-toggle-btn:hover {
+    background: #5a6fd6;
+    transform: scale(1.05);
+}
+
+/* ===== 卡片视图 ===== */
+.card-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 20px;
+}
+
+.person-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: box-shadow 0.2s;
+}
+
+.person-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.card-index {
+    color: #999;
+    font-size: 11px;
+    min-width: 20px;
+}
+
+.card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #333;
+    flex: 1;
+}
+
+.card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 16px;
+}
+
+.card-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2px 0;
+    font-size: 13px;
+}
+
+.card-label {
+    color: #888;
+    font-size: 11px;
+    min-width: 36px;
+    flex-shrink: 0;
+}
+
+.card-notes {
+    grid-column: 1 / -1;
+}
+
+.card-notes span:last-child {
+    color: #555;
+}
+
+.card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.card-time {
+    font-size: 11px;
+    color: #aaa;
+}
+
+.card-actions {
+    display: flex;
+    gap: 6px;
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 768px) {
     .navbar {

@@ -200,13 +200,47 @@ function formatTime(isoStr) {
 
 // ==================== 列表 & CRUD ====================
 
-function refreshList() {
-    const people = getSortedPeople();
-    const tbody = document.getElementById('table-body');
-    const totalCount = document.getElementById('total-count');
+// 视图模式: 'table' 或 'card'，默认表格，移动端默认卡片
+var currentView = (function() {
+    var saved = localStorage.getItem('personInfoViewMode');
+    if (saved) return saved;
+    return window.innerWidth < 768 ? 'card' : 'table';
+})();
 
+function toggleView() {
+    currentView = currentView === 'table' ? 'card' : 'table';
+    localStorage.setItem('personInfoViewMode', currentView);
+    refreshList();
+}
+
+function refreshList() {
+    var people = getSortedPeople();
+    var totalCount = document.getElementById('total-count');
     totalCount.textContent = people.length;
     updateSortArrows();
+
+    // 更新切换按钮
+    var toggleBtn = document.getElementById('view-toggle');
+    if (toggleBtn) {
+        toggleBtn.textContent = currentView === 'table' ? '🃏 卡片' : '📋 表格';
+    }
+
+    // 显示/隐藏对应容器
+    var tableWrapper = document.getElementById('table-wrapper');
+    var cardContainer = document.getElementById('card-container');
+    if (currentView === 'table') {
+        tableWrapper.style.display = '';
+        cardContainer.style.display = 'none';
+        renderTable(people);
+    } else {
+        tableWrapper.style.display = 'none';
+        cardContainer.style.display = '';
+        renderCards(people);
+    }
+}
+
+function renderTable(people) {
+    var tbody = document.getElementById('table-body');
 
     if (people.length === 0) {
         tbody.innerHTML = '<tr><td colspan="12" class="empty-message">暂无数据，请先在「输入信息」页面添加</td></tr>';
@@ -238,6 +272,47 @@ function refreshList() {
             '</td>';
         tbody.appendChild(row);
     });
+}
+
+function renderCards(people) {
+    var container = document.getElementById('card-container');
+
+    if (people.length === 0) {
+        container.innerHTML = '<div class="empty-message" style="padding:40px;text-align:center;color:#999;">暂无数据，请先在「输入信息」页面添加</div>';
+        return;
+    }
+
+    var html = '';
+    people.forEach(function(person, index) {
+        var statusClass = getStatusClass(person.followStatus);
+        var notesText = person.notes || '';
+        var timeStr = formatTime(person.createdAt);
+        html +=
+            '<div class="person-card">' +
+                '<div class="card-header">' +
+                    '<span class="card-index">#' + (index + 1) + '</span>' +
+                    '<span class="card-name">' + escHtml(person.name) + '</span>' +
+                    '<span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span>' +
+                '</div>' +
+                '<div class="card-body">' +
+                    '<div class="card-row"><span class="card-label">店铺</span><span>' + (escHtml(person.shopLevel) || '—') + '</span></div>' +
+                    '<div class="card-row"><span class="card-label">熟练度</span><span>' + (escHtml(person.skillLevel) || '—') + '</span></div>' +
+                    '<div class="card-row"><span class="card-label">年龄</span><span>' + (escHtml(person.age) || '—') + '</span></div>' +
+                    '<div class="card-row"><span class="card-label">性格</span><span>' + (escHtml(person.personality) || '—') + '</span></div>' +
+                    '<div class="card-row"><span class="card-label">意愿</span><span>' + (escHtml(person.willingness) || '—') + '</span></div>' +
+                    (person.wechat ? '<div class="card-row"><span class="card-label">微信</span><span>' + escHtml(person.wechat) + '</span></div>' : '') +
+                    (notesText ? '<div class="card-row card-notes"><span class="card-label">备注</span><span>' + escHtml(notesText) + '</span></div>' : '') +
+                '</div>' +
+                '<div class="card-footer">' +
+                    '<span class="card-time">' + timeStr + '</span>' +
+                    '<div class="card-actions">' +
+                        '<button class="btn btn-edit" onclick="editPerson(' + person.id + ')">✏️</button>' +
+                        '<button class="btn btn-danger" onclick="deletePerson(' + person.id + ')">🗑️</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+    });
+    container.innerHTML = html;
 }
 
 function savePerson(person) {

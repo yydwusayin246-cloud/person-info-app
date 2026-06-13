@@ -142,8 +142,10 @@
                 <div id="list-stats" class="stats-bar">
                     总人数: <span id="total-count">0</span>
                     <span class="sort-indicator" id="sort-info"></span>
+                    <button class="view-toggle-btn" id="view-toggle" onclick="toggleView()">🃏 卡片</button>
                 </div>
-                <div class="table-wrapper">
+                <!-- 表格视图 -->
+                <div class="table-wrapper" id="table-wrapper">
                     <table id="data-table" class="data-table">
                         <thead>
                             <tr>
@@ -168,6 +170,8 @@
                         </tbody>
                     </table>
                 </div>
+                <!-- 卡片视图 -->
+                <div class="card-container" id="card-container" style="display:none;"></div>
             </div>
 
             <!-- 屏幕3: 搜索界面 -->
