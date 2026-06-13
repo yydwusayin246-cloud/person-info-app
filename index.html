@@ -86,17 +86,6 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="personality">性格特点 *</label>
-                        <select id="personality" name="personality" required>
-                            <option value="">选择性格...</option>
-                            <option value="温和">温和</option>
-                            <option value="普通">普通</option>
-                            <option value="冷淡">冷淡</option>
-                            <option value="急躁">急躁</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
                         <label for="willingness">意愿程度 *</label>
                         <select id="willingness" name="willingness" required>
                             <option value="">选择意愿程度...</option>
@@ -142,10 +131,8 @@
                 <div id="list-stats" class="stats-bar">
                     总人数: <span id="total-count">0</span>
                     <span class="sort-indicator" id="sort-info"></span>
-                    <button class="view-toggle-btn" id="view-toggle" onclick="toggleView()">🃏 卡片</button>
                 </div>
-                <!-- 表格视图 -->
-                <div class="table-wrapper" id="table-wrapper">
+                <div class="table-wrapper">
                     <table id="data-table" class="data-table">
                         <thead>
                             <tr>
@@ -154,7 +141,6 @@
                                 <th>店铺</th>
                                 <th>熟练度</th>
                                 <th class="sortable" onclick="toggleSort('age')">年龄 <span class="sort-arrow" id="sort-age"></span></th>
-                                <th>性格</th>
                                 <th class="sortable" onclick="toggleSort('willingness')">意愿 <span class="sort-arrow" id="sort-willingness"></span></th>
                                 <th>微信</th>
                                 <th>跟进状态</th>
@@ -165,13 +151,11 @@
                         </thead>
                         <tbody id="table-body">
                             <tr>
-                                <td colspan="12" class="empty-message">暂无数据</td>
+                                <td colspan="10" class="empty-message">暂无数据</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <!-- 卡片视图 -->
-                <div class="card-container" id="card-container" style="display:none;"></div>
             </div>
 
             <!-- 屏幕3: 搜索界面 -->
@@ -215,16 +199,6 @@
                     </div>
 
                     <div class="filter-group">
-                        <label>按性格筛选（可多选）</label>
-                        <div class="checkbox-group" id="search-personality-group">
-                            <label class="checkbox-label"><input type="checkbox" value="温和"> 温和</label>
-                            <label class="checkbox-label"><input type="checkbox" value="普通"> 普通</label>
-                            <label class="checkbox-label"><input type="checkbox" value="冷淡"> 冷淡</label>
-                            <label class="checkbox-label"><input type="checkbox" value="急躁"> 急躁</label>
-                        </div>
-                    </div>
-
-                    <div class="filter-group">
                         <label>按意愿程度筛选（可多选）</label>
                         <div class="checkbox-group" id="search-willingness-group">
                             <label class="checkbox-label"><input type="checkbox" value="非常低"> 非常低</label>
@@ -262,7 +236,6 @@
                                     <th>店铺</th>
                                     <th>熟练度</th>
                                     <th>年龄</th>
-                                    <th>性格</th>
                                     <th>意愿</th>
                                     <th>微信</th>
                                     <th>跟进状态</th>

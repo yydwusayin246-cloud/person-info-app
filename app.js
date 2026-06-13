@@ -50,7 +50,6 @@ function buildPersonFromForm(id) {
         shopLevel: document.getElementById('shop-level').value,
         skillLevel: document.getElementById('skill-level').value,
         age: document.getElementById('age').value,
-        personality: document.getElementById('personality').value,
         willingness: document.getElementById('willingness').value,
         wechat: document.getElementById('wechat').value.trim(),
         followStatus: document.getElementById('follow-status').value,
@@ -64,7 +63,6 @@ function validatePerson(person) {
     if (!person.shopLevel) { alert('请选择店铺挡位！'); return false; }
     if (!person.skillLevel) { alert('请选择行业熟练程度！'); return false; }
     if (!person.age) { alert('请选择年龄！'); return false; }
-    if (!person.personality) { alert('请选择性格特点！'); return false; }
     if (!person.willingness) { alert('请选择意愿程度！'); return false; }
     return true;
 }
@@ -200,65 +198,30 @@ function formatTime(isoStr) {
 
 // ==================== 列表 & CRUD ====================
 
-// 视图模式: 'table' 或 'card'，默认表格，移动端默认卡片
-var currentView = (function() {
-    var saved = localStorage.getItem('personInfoViewMode');
-    if (saved) return saved;
-    return window.innerWidth < 768 ? 'card' : 'table';
-})();
-
-function toggleView() {
-    currentView = currentView === 'table' ? 'card' : 'table';
-    localStorage.setItem('personInfoViewMode', currentView);
-    refreshList();
-}
-
 function refreshList() {
     var people = getSortedPeople();
+    var tbody = document.getElementById('table-body');
     var totalCount = document.getElementById('total-count');
+
     totalCount.textContent = people.length;
     updateSortArrows();
 
-    // 更新切换按钮
-    var toggleBtn = document.getElementById('view-toggle');
-    if (toggleBtn) {
-        toggleBtn.textContent = currentView === 'table' ? '🃏 卡片' : '📋 表格';
-    }
-
-    // 显示/隐藏对应容器
-    var tableWrapper = document.getElementById('table-wrapper');
-    var cardContainer = document.getElementById('card-container');
-    if (currentView === 'table') {
-        tableWrapper.style.display = '';
-        cardContainer.style.display = 'none';
-        renderTable(people);
-    } else {
-        tableWrapper.style.display = 'none';
-        cardContainer.style.display = '';
-        renderCards(people);
-    }
-}
-
-function renderTable(people) {
-    var tbody = document.getElementById('table-body');
-
     if (people.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="empty-message">暂无数据，请先在「输入信息」页面添加</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-message">暂无数据，请先在「输入信息」页面添加</td></tr>';
         return;
     }
 
     tbody.innerHTML = '';
-    people.forEach((person, index) => {
-        const statusClass = getStatusClass(person.followStatus);
-        const notesShort = person.notes ? (person.notes.length > 15 ? escHtml(person.notes.slice(0, 15)) + '...' : escHtml(person.notes)) : '—';
-        const row = document.createElement('tr');
+    people.forEach(function(person, index) {
+        var statusClass = getStatusClass(person.followStatus);
+        var notesShort = person.notes ? (person.notes.length > 15 ? escHtml(person.notes.slice(0, 15)) + '...' : escHtml(person.notes)) : '—';
+        var row = document.createElement('tr');
         row.innerHTML =
             '<td>' + (index + 1) + '</td>' +
             '<td>' + escHtml(person.name) + '</td>' +
             '<td>' + (escHtml(person.shopLevel) || '—') + '</td>' +
             '<td>' + (escHtml(person.skillLevel) || '—') + '</td>' +
             '<td>' + (escHtml(person.age) || '—') + '</td>' +
-            '<td>' + (escHtml(person.personality) || '—') + '</td>' +
             '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
             '<td>' + (escHtml(person.wechat) || '—') + '</td>' +
             '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
@@ -272,47 +235,6 @@ function renderTable(people) {
             '</td>';
         tbody.appendChild(row);
     });
-}
-
-function renderCards(people) {
-    var container = document.getElementById('card-container');
-
-    if (people.length === 0) {
-        container.innerHTML = '<div class="empty-message" style="padding:40px;text-align:center;color:#999;">暂无数据，请先在「输入信息」页面添加</div>';
-        return;
-    }
-
-    var html = '';
-    people.forEach(function(person, index) {
-        var statusClass = getStatusClass(person.followStatus);
-        var notesText = person.notes || '';
-        var timeStr = formatTime(person.createdAt);
-        html +=
-            '<div class="person-card">' +
-                '<div class="card-header">' +
-                    '<span class="card-index">#' + (index + 1) + '</span>' +
-                    '<span class="card-name">' + escHtml(person.name) + '</span>' +
-                    '<span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span>' +
-                '</div>' +
-                '<div class="card-body">' +
-                    '<div class="card-row"><span class="card-label">店铺</span><span>' + (escHtml(person.shopLevel) || '—') + '</span></div>' +
-                    '<div class="card-row"><span class="card-label">熟练度</span><span>' + (escHtml(person.skillLevel) || '—') + '</span></div>' +
-                    '<div class="card-row"><span class="card-label">年龄</span><span>' + (escHtml(person.age) || '—') + '</span></div>' +
-                    '<div class="card-row"><span class="card-label">性格</span><span>' + (escHtml(person.personality) || '—') + '</span></div>' +
-                    '<div class="card-row"><span class="card-label">意愿</span><span>' + (escHtml(person.willingness) || '—') + '</span></div>' +
-                    (person.wechat ? '<div class="card-row"><span class="card-label">微信</span><span>' + escHtml(person.wechat) + '</span></div>' : '') +
-                    (notesText ? '<div class="card-row card-notes"><span class="card-label">备注</span><span>' + escHtml(notesText) + '</span></div>' : '') +
-                '</div>' +
-                '<div class="card-footer">' +
-                    '<span class="card-time">' + timeStr + '</span>' +
-                    '<div class="card-actions">' +
-                        '<button class="btn btn-edit" onclick="editPerson(' + person.id + ')">✏️</button>' +
-                        '<button class="btn btn-danger" onclick="deletePerson(' + person.id + ')">🗑️</button>' +
-                    '</div>' +
-                '</div>' +
-            '</div>';
-    });
-    container.innerHTML = html;
 }
 
 function savePerson(person) {
@@ -364,7 +286,6 @@ function editPerson(id) {
     document.getElementById('shop-level').value = person.shopLevel;
     document.getElementById('skill-level').value = person.skillLevel;
     document.getElementById('age').value = person.age;
-    document.getElementById('personality').value = person.personality;
     document.getElementById('willingness').value = person.willingness;
     document.getElementById('wechat').value = person.wechat || '';
     document.getElementById('follow-status').value = person.followStatus || '';
@@ -396,7 +317,6 @@ function performSearch() {
     const ages = getCheckedValues('search-age-group');
     const shops = getCheckedValues('search-shop-group');
     const skills = getCheckedValues('search-skill-group');
-    const personalities = getCheckedValues('search-personality-group');
     const willingnesses = getCheckedValues('search-willingness-group');
     const statuses = getCheckedValues('search-status-group');
 
@@ -413,9 +333,6 @@ function performSearch() {
     }
     if (skills.length > 0) {
         results = results.filter(p => skills.includes(p.skillLevel));
-    }
-    if (personalities.length > 0) {
-        results = results.filter(p => personalities.includes(p.personality));
     }
     if (willingnesses.length > 0) {
         results = results.filter(p => willingnesses.includes(p.willingness));
@@ -460,7 +377,6 @@ function displaySearchResults(results) {
             '<td>' + (escHtml(person.shopLevel) || '—') + '</td>' +
             '<td>' + (escHtml(person.skillLevel) || '—') + '</td>' +
             '<td>' + (escHtml(person.age) || '—') + '</td>' +
-            '<td>' + (escHtml(person.personality) || '—') + '</td>' +
             '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
             '<td>' + (escHtml(person.wechat) || '—') + '</td>' +
             '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
