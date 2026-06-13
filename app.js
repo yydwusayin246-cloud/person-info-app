@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 应用初始化
 function initializeApp() {
+    migrateData();
     setupNavigation();
     setupFormHandler();
     setupSearchHandler();
@@ -216,6 +217,22 @@ function getPeople() {
     return data ? JSON.parse(data) : [];
 }
 
+// 数据迁移：启动时自动给旧记录补上缺少的字段
+function migrateData() {
+    const people = getPeople();
+    if (people.length === 0) return;
+
+    var changed = false;
+    people.forEach(function(p) {
+        if (p.followStatus === undefined) { p.followStatus = ''; changed = true; }
+        if (p.notes === undefined) { p.notes = ''; changed = true; }
+    });
+
+    if (changed) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(people));
+    }
+}
+
 function deletePerson(id) {
     if (!confirm('确定要删除这条记录吗？')) return;
     const people = getPeople();
@@ -337,6 +354,9 @@ function displaySearchResults(results) {
             '<td class="notes-cell">' + (escHtml(person.notes) || '—') + '</td>';
         tbody.appendChild(row);
     });
+
+    // 自动滚动到搜索结果
+    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ==================== 备份 & 恢复 ====================
