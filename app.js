@@ -364,13 +364,13 @@ function exportData() {
     const a = document.createElement('a');
     a.href = url;
     const dateStr = new Date().toISOString().slice(0, 10);
-    a.download = `人员信息备份_${dateStr}.json`;
+    a.download = '人员信息备份_' + dateStr + '.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    alert(`✅ 备份成功！文件已下载（${people.length} 条记录）\n\n💡 请将文件保存到安全的位置，如：\n  - 手机"文件管理"文件夹\n  - 发送到微信"文件传输助手"\n  - 保存到云盘`);
+    alert('✅ 备份成功！文件已下载（' + people.length + ' 条记录）\n\n💡 请将文件保存到安全的位置，如：\n  - 手机"文件管理"文件夹\n  - 发送到微信"文件传输助手"\n  - 保存到云盘');
 }
 
 function importData(event) {
@@ -392,24 +392,24 @@ function importData(event) {
                 : '未知';
 
             const action = confirm(
-                `📥 发现备份文件：\n` +
-                `  - 备份时间：${exportedDate}\n` +
-                `  - 记录数量：${count} 条\n\n` +
-                `请选择操作：\n` +
-                `  【确定】替换当前所有数据\n` +
-                `  【取消】合并到现有数据（不覆盖）`
+                '📥 发现备份文件：\n' +
+                '  - 备份时间：' + exportedDate + '\n' +
+                '  - 记录数量：' + count + ' 条\n\n' +
+                '请选择操作：\n' +
+                '  【确定】替换当前所有数据\n' +
+                '  【取消】合并到现有数据（不覆盖）'
             );
 
             if (action) {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(importObj.data));
-                alert(`✅ 数据已替换！共导入 ${count} 条记录。`);
+                alert('✅ 数据已替换！共导入 ' + count + ' 条记录。');
             } else {
                 const existing = getPeople();
                 const existingIds = new Set(existing.map(p => p.id));
                 const newItems = importObj.data.filter(p => !existingIds.has(p.id));
                 const merged = [...existing, ...newItems];
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-                alert(`✅ 数据已合并！新增 ${newItems.length} 条记录（共 ${merged.length} 条）。`);
+                alert('✅ 数据已合并！新增 ' + newItems.length + ' 条记录（共 ' + merged.length + ' 条）。');
             }
 
             refreshList();
