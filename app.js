@@ -5,7 +5,7 @@ const STORAGE_KEY = 'personInfoData';
 let currentSort = { field: null, order: null };
 
 // 年龄排序映射
-const AGE_ORDER = { '30以下': 0, '30-40': 1, '40-50': 2, '50-60': 3, '60-70': 4, '70及以上': 5 };
+const AGE_ORDER = { '30以下': 0, '30-35': 1, '35-40': 2, '40-45': 3, '45-50': 4, '50-55': 5, '55-60': 6 ,'60以上': 7};
 // 意愿排序映射
 const WILLINGNESS_ORDER = { '非常低': 0, '较低': 1, '一般': 2, '较高': 3, '非常高': 4 };
 
@@ -175,9 +175,10 @@ function updateSortArrows() {
 function getStatusClass(status) {
     const map = {
         '未联系': 'status-gray',
-        '已联系意向低': 'status-orange',
-        '沟通中': 'status-blue',
-        '已签约': 'status-green',
+        '已联系意向低': 'status-red',
+        '沟通中': 'status-yellow',
+        '意向高': 'status-blue',
+        '已成单': 'status-green'
     };
     return map[status] || '';
 }
@@ -452,10 +453,7 @@ function importData(event) {
 
             // 显示自定义弹窗
             showImportModal(count, exportedDate, function(mode) {
-                if (mode === 'replace') {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(importObj.data));
-                    alert('✅ 数据已替换！共导入 ' + count + ' 条记录。');
-                } else if (mode === 'merge') {
+                if (mode === 'merge') {
                     var existing = getPeople();
                     var existingCopy = existing.slice(); // 浅拷贝用于修改
                     var newItems = [];
