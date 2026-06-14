@@ -269,12 +269,14 @@ function migrateData() {
 
     var changed = false;
     var shopMap = { '3000以下': '3千以下', '3000-5000': '3千-5千', '6000-9000': '6千-9千', '10000及以上': '1万及以上' };
+    var ageMap = { '30-40': '30-35', '40-50': '40-45', '50-60': '50-55', '60-70': '55-60', '70及以上': '60以上' };
 
     people.forEach(function(p) {
         if (p.followStatus === undefined) { p.followStatus = ''; changed = true; }
         if (p.notes === undefined) { p.notes = ''; changed = true; }
         if (p.createdAt === undefined) { p.createdAt = new Date().toISOString(); changed = true; }
         if (shopMap[p.shopLevel]) { p.shopLevel = shopMap[p.shopLevel]; changed = true; }
+        if (ageMap[p.age]) { p.age = ageMap[p.age]; changed = true; }
     });
 
     if (changed) {
