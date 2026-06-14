@@ -313,6 +313,9 @@ function editPerson(id) {
 
 // ==================== 多选搜索 ====================
 
+var searchResults = [];
+var searchSortOrder = null; // null, 'asc', 'desc'
+
 function getCheckedValues(groupId) {
     const group = document.getElementById(groupId);
     if (!group) return [];
@@ -354,6 +357,9 @@ function performSearch() {
         results = results.filter(p => statuses.includes(p.followStatus));
     }
 
+    searchResults = results;
+    searchSortOrder = null;
+    updateSearchSortArrow();
     displaySearchResults(results);
 }
 
@@ -399,6 +405,36 @@ function displaySearchResults(results) {
 
     // 自动滚动到搜索结果
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// 搜索结果按时间排序
+function toggleSearchSort() {
+    if (searchSortOrder === null) {
+        searchSortOrder = 'asc';
+    } else if (searchSortOrder === 'asc') {
+        searchSortOrder = 'desc';
+    } else {
+        searchSortOrder = null;
+    }
+    updateSearchSortArrow();
+    if (searchSortOrder) {
+        var sorted = searchResults.slice().sort(function(a, b) {
+            var ta = a.createdAt || '';
+            var tb = b.createdAt || '';
+            if (searchSortOrder === 'asc') return ta < tb ? -1 : ta > tb ? 1 : 0;
+            return ta > tb ? -1 : ta < tb ? 1 : 0;
+        });
+        displaySearchResults(sorted);
+    } else {
+        displaySearchResults(searchResults);
+    }
+}
+
+function updateSearchSortArrow() {
+    var arrow = document.getElementById('sort-search-time');
+    if (arrow) {
+        arrow.textContent = searchSortOrder === 'asc' ? ' ▲' : searchSortOrder === 'desc' ? ' ▼' : '';
+    }
 }
 
 // ==================== 备份 & 恢复 ====================
