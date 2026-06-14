@@ -277,6 +277,7 @@ function migrateData() {
         if (p.createdAt === undefined) { p.createdAt = new Date().toISOString(); changed = true; }
         if (shopMap[p.shopLevel]) { p.shopLevel = shopMap[p.shopLevel]; changed = true; }
         if (ageMap[p.age]) { p.age = ageMap[p.age]; changed = true; }
+        if (p.followStatus === '已签约') { p.followStatus = '已成单'; changed = true; }
     });
 
     if (changed) {
