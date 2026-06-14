@@ -391,6 +391,24 @@ html, body {
     color: #666;
 }
 
+.notes-clickable {
+    cursor: pointer;
+    color: #667eea;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+.notes-clickable:hover {
+    color: #764ba2;
+}
+
+.notes-expanded {
+    white-space: normal !important;
+    max-width: 200px !important;
+    text-decoration: none !important;
+    color: #333 !important;
+}
+
 /* 时间列 */
 .time-cell {
     font-size: 11px;

@@ -213,7 +213,9 @@ function refreshList() {
     tbody.innerHTML = '';
     people.forEach(function(person, index) {
         var statusClass = getStatusClass(person.followStatus);
+        var fullNotes = escHtml(person.notes || '');
         var notesShort = person.notes ? (person.notes.length > 15 ? escHtml(person.notes.slice(0, 15)) + '...' : escHtml(person.notes)) : '—';
+        var needsClick = person.notes && person.notes.length > 15;
         var row = document.createElement('tr');
         row.innerHTML =
             '<td>' + (index + 1) + '</td>' +
@@ -223,7 +225,7 @@ function refreshList() {
             '<td>' + (escHtml(person.age) || '—') + '</td>' +
             '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
             '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
-            '<td class="notes-cell" title="' + escHtml(person.notes || '') + '">' + notesShort + '</td>' +
+            '<td class="notes-cell' + (needsClick ? ' notes-clickable' : '') + '" data-full="' + fullNotes + '" onclick="toggleNotes(this)">' + notesShort + '</td>' +
             '<td class="time-cell">' + formatTime(person.createdAt) + '</td>' +
             '<td>' +
                 '<div class="actions">' +
@@ -381,7 +383,7 @@ function displaySearchResults(results) {
             '<td>' + (escHtml(person.age) || '—') + '</td>' +
             '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
             '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
-            '<td class="notes-cell">' + (escHtml(person.notes) || '—') + '</td>' +
+            '<td class="notes-cell' + ((person.notes && person.notes.length > 15) ? ' notes-clickable' : '') + '" data-full="' + escHtml(person.notes || '') + '" onclick="toggleNotes(this)">' + (person.notes ? (person.notes.length > 15 ? escHtml(person.notes.slice(0, 15)) + '...' : escHtml(person.notes)) : '—') + '</td>' +
             '<td class="time-cell">' + formatTime(person.createdAt) + '</td>';
         tbody.appendChild(row);
     });
@@ -489,6 +491,18 @@ function importData(event) {
 
 function triggerImport() {
     document.getElementById('import-file-input').click();
+}
+
+// 点击备注单元格展开/收起
+function toggleNotes(td) {
+    var full = td.getAttribute('data-full');
+    if (td.classList.contains('notes-expanded')) {
+        td.classList.remove('notes-expanded');
+        td.textContent = full.length > 15 ? full.slice(0, 15) + '...' : (full || '—');
+    } else {
+        td.classList.add('notes-expanded');
+        td.textContent = full || '—';
+    }
 }
 
 // 自定义导入确认弹窗
