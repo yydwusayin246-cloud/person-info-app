@@ -16,6 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 应用初始化
 function initializeApp() {
+    // 请求持久化存储，防止浏览器自动清理
+    if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then(function(granted) {
+            if (granted) {
+                console.log('存储已设为持久化，数据不会被自动清理');
+            }
+        });
+    }
     var dataBefore = getPeople().length;
     migrateData();
     var dataAfter = getPeople().length;
