@@ -409,6 +409,27 @@ html, body {
     color: #333 !important;
 }
 
+/* 底部提示条 */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 30000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.toast-show {
+    opacity: 1;
+}
+
 /* 时间列 */
 .time-cell {
     font-size: 11px;

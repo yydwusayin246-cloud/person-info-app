@@ -16,11 +16,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 应用初始化
 function initializeApp() {
+    var dataBefore = getPeople().length;
     migrateData();
+    var dataAfter = getPeople().length;
     setupNavigation();
     setupFormHandler();
     setupSearchHandler();
     refreshList();
+    // 数据完好提示
+    if (dataAfter > 0 && dataAfter === dataBefore) {
+        showToast('✅ 数据完好，共 ' + dataAfter + ' 条记录');
+    } else if (dataAfter > dataBefore) {
+        showToast('✅ 数据已更新，共 ' + dataAfter + ' 条记录');
+    }
 }
 
 // 设置导航
@@ -503,6 +511,22 @@ function toggleNotes(td) {
         td.classList.add('notes-expanded');
         td.textContent = full || '—';
     }
+}
+
+// 底部提示条
+function showToast(msg) {
+    var toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add('toast-show');
+    setTimeout(function() {
+        toast.classList.remove('toast-show');
+    }, 2500);
 }
 
 // 自定义导入确认弹窗
