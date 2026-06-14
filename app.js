@@ -495,23 +495,20 @@ function triggerImport() {
 function showImportModal(count, dateStr, callback) {
     var modal = document.getElementById('import-modal');
     var body = document.getElementById('modal-body');
-    var btnReplace = document.getElementById('modal-replace');
     var btnMerge = document.getElementById('modal-merge');
     var btnCancel = document.getElementById('modal-cancel');
 
-    body.textContent = '备份时间：' + dateStr + '\n记录数量：' + count + ' 条\n\n替换：清空当前数据，用备份覆盖\n合并：按姓名+年龄匹配，保留信息更丰富的那条';
+    body.textContent = '备份时间：' + dateStr + '\n记录数量：' + count + ' 条\n\n按姓名+年龄匹配，保留信息更丰富的那条';
 
     modal.style.display = 'flex';
 
     function close(mode) {
         modal.style.display = 'none';
-        btnReplace.onclick = null;
         btnMerge.onclick = null;
         btnCancel.onclick = null;
         if (callback) callback(mode);
     }
 
-    btnReplace.onclick = function() { close('replace'); };
     btnMerge.onclick = function() { close('merge'); };
     btnCancel.onclick = function() { close(null); };
 }
