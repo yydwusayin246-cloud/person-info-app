@@ -377,16 +377,26 @@ async function performSearch() {
     }
 
     displaySearchResults(results);
-    // 搜索后自动收起筛选区，让结果全屏展示
+    // 搜索后收起筛选区，结果全屏
     const panel = document.getElementById('search-filters-panel');
     const toggle = document.getElementById('filter-toggle');
     panel.classList.add('collapsed');
     toggle.classList.add('show');
     toggle.querySelector('span').textContent = '🔽 展开筛选';
-    // 滚动到搜索结果
+    // 滚动到结果区（移动端确保可见）
     setTimeout(() => {
-        document.getElementById('search-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+        const results = document.getElementById('search-results');
+        if (results) {
+            results.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // 兜底：如果 scrollIntoView 没生效，手动滚动 screen
+            setTimeout(() => {
+                const screen = document.getElementById('search-screen');
+                if (screen && results.getBoundingClientRect().top < 0) {
+                    screen.scrollBy({ top: results.getBoundingClientRect().top - 80, behavior: 'smooth' });
+                }
+            }, 300);
+        }
+    }, 200);
 }
 
 function clearSearchFilters() {
