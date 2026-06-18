@@ -580,20 +580,57 @@ async function exportData() {
         data: people
     };
 
-    const jsonStr = JSON.stringify(exportObj, null, 2);
+    const jsonStr = JSON.stringify(exportObj);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `人员信息备份_${dateStr}.json`;
+    const isWechat = /micromessenger/i.test(navigator.userAgent);
+
+    // 微信内：用分享面板直接发给好友或文件传输助手
+    if (isWechat && navigator.share) {
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const file = new File([blob], filename, { type: 'application/json' });
+        // 微信支持 files 分享
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file], title: '人员信息备份' });
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+        // 不支持文件分享则分享文本
+        try {
+            await navigator.share({ title: '人员信息备份', text: jsonStr });
+            return;
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+        }
+    }
+
+    // 其他浏览器：优先文件分享
+    if (!isWechat && navigator.share) {
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const file = new File([blob], filename, { type: 'application/json' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file], title: '人员信息备份', text: `${people.length} 条记录` });
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+    }
+
+    // 降级：直接下载
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement('a');
     a.href = url;
-    const dateStr = new Date().toISOString().slice(0, 10);
-    a.download = `人员信息备份_${dateStr}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    alert(`✅ 备份成功！文件已下载到手机（${people.length} 条记录）\n\n💡 请将文件保存到安全的位置，如：\n  - 手机"文件管理"文件夹\n  - 发送到微信"文件传输助手"\n  - 保存到云盘`);
 }
 
 function importData(event) {
