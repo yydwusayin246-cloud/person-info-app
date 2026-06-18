@@ -285,6 +285,8 @@ function setupFormHandler() {
             .map(cb => cb.value).join('、');
         const address = Array.from(document.querySelectorAll('input[name="address"]:checked'))
             .map(cb => cb.value).join('、');
+        const shopType = Array.from(document.querySelectorAll('input[name="shopType"]:checked'))
+            .map(cb => cb.value).join('、');
 
         const person = {
             id: personId,
@@ -292,7 +294,7 @@ function setupFormHandler() {
             shopLevel: shopLevel,
             skillLevel: document.getElementById('skill-level').value,
             address: address,
-            shopType: document.getElementById('shop-type').value,
+            shopType: shopType,
             willingness: document.getElementById('willingness').value,
             note: document.getElementById('note').value.trim(),
         };
@@ -353,7 +355,7 @@ async function performSearch() {
         results = results.filter(p => addrList.some(v => p.address && p.address.includes(v)));
     }
     if (typeList.length > 0) {
-        results = results.filter(p => typeList.some(v => p.shopType === v));
+        results = results.filter(p => typeList.some(v => p.shopType && p.shopType.includes(v)));
     }
 
     displaySearchResults(results);
@@ -532,7 +534,6 @@ async function editPerson(id) {
     document.getElementById('name').value = person.name;
     document.getElementById('skill-level').value = person.skillLevel;
     document.getElementById('willingness').value = person.willingness;
-    document.getElementById('shop-type').value = person.shopType || '';
     document.getElementById('note').value = person.note || '';
     document.getElementById('note-count').textContent = (person.note || '').length;
 
@@ -546,6 +547,12 @@ async function editPerson(id) {
     const addrValues = (person.address || '').split('、');
     document.querySelectorAll('input[name="address"]').forEach(cb => {
         cb.checked = addrValues.includes(cb.value);
+    });
+
+    // 多选 checkbox — 店铺种类
+    const typeValues = (person.shopType || '').split('、');
+    document.querySelectorAll('input[name="shopType"]').forEach(cb => {
+        cb.checked = typeValues.includes(cb.value);
     });
 
     const form = document.getElementById('input-form');
