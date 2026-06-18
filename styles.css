@@ -409,6 +409,77 @@ html, body {
     padding: 40px !important;
 }
 
+/* ===== 多选 checkbox 组 ===== */
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.checkbox-label {
+    display: flex !important;
+    align-items: center;
+    gap: 5px;
+    font-weight: normal !important;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    background: #fff;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.checkbox-label:has(input:checked) {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+/* ===== 意愿程度颜色标签 ===== */
+.will-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.will-gray { background: #E0E0E0; color: #555; }
+.will-purple { background: #E1BEE7; color: #7B1FA2; }
+.will-orange { background: #FFE0B2; color: #E65100; }
+.will-blue { background: #BBDEFB; color: #1565C0; }
+.will-green { background: #C8E6C9; color: #2E7D32; }
+
+/* ===== 备注 ===== */
+#note {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.char-count {
+    font-size: 12px;
+    color: #999;
+    text-align: right;
+    display: block;
+    margin-top: 4px;
+}
+
+.note-cell {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* ===== 搜索过滤 ===== */
 .search-filters {
     background: #f9f9f9;

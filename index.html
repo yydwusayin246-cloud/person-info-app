@@ -50,14 +50,13 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="shop-level">店铺挡位 *</label>
-                        <select id="shop-level" name="shop-level" required>
-                            <option value="">选择店铺挡位...</option>
-                            <option value="3000以下">3000以下</option>
-                            <option value="3000-5000">3000-5000</option>
-                            <option value="6000-9000">6000-9000</option>
-                            <option value="10000及以上">10000及以上</option>
-                        </select>
+                        <label>店铺挡位 *</label>
+                        <div class="checkbox-group" id="shop-level-group">
+                            <label class="checkbox-label"><input type="checkbox" name="shopLevel" value="3千以下"> 3千以下</label>
+                            <label class="checkbox-label"><input type="checkbox" name="shopLevel" value="3千-4千"> 3千-4千</label>
+                            <label class="checkbox-label"><input type="checkbox" name="shopLevel" value="4千-6千"> 4千-6千</label>
+                            <label class="checkbox-label"><input type="checkbox" name="shopLevel" value="6千以上"> 6千以上</label>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -71,26 +70,25 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="age">年龄 *</label>
-                        <select id="age" name="age" required>
-                            <option value="">选择年龄段...</option>
-                            <option value="30以下">30以下</option>
-                            <option value="30-40">30-40</option>
-                            <option value="40-50">40-50</option>
-                            <option value="50-60">50-60</option>
-                            <option value="60-70">60-70</option>
-                            <option value="70及以上">70及以上</option>
-                        </select>
+                        <label>地址</label>
+                        <div class="checkbox-group" id="address-group">
+                            <label class="checkbox-label"><input type="checkbox" name="address" value="广佛"> 广佛</label>
+                            <label class="checkbox-label"><input type="checkbox" name="address" value="东莞惠州"> 东莞惠州</label>
+                            <label class="checkbox-label"><input type="checkbox" name="address" value="全深圳"> 全深圳</label>
+                            <label class="checkbox-label"><input type="checkbox" name="address" value="龙岗"> 龙岗</label>
+                            <label class="checkbox-label"><input type="checkbox" name="address" value="龙华"> 龙华</label>
+                            <label class="checkbox-label"><input type="checkbox" name="address" value="宝安"> 宝安</label>
+                            <label class="checkbox-label"><input type="checkbox" name="address" value="珠三角"> 珠三角</label>
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="personality">性格特点 *</label>
-                        <select id="personality" name="personality" required>
-                            <option value="">选择性格...</option>
-                            <option value="温和">温和</option>
-                            <option value="普通">普通</option>
-                            <option value="冷淡">冷淡</option>
-                            <option value="急躁">急躁</option>
+                        <label for="shop-type">店铺种类</label>
+                        <select id="shop-type" name="shop-type">
+                            <option value="">选择店铺种类...</option>
+                            <option value="零食店">零食店</option>
+                            <option value="空铺">空铺</option>
+                            <option value="成品店">成品店</option>
                         </select>
                     </div>
 
@@ -98,17 +96,18 @@
                         <label for="willingness">意愿程度 *</label>
                         <select id="willingness" name="willingness" required>
                             <option value="">选择意愿程度...</option>
-                            <option value="非常低">非常低</option>
-                            <option value="较低">较低</option>
-                            <option value="一般">一般</option>
-                            <option value="较高">较高</option>
-                            <option value="非常高">非常高</option>
+                            <option value="未联系">未联系</option>
+                            <option value="意愿低">意愿低</option>
+                            <option value="洽谈中">洽谈中</option>
+                            <option value="意愿高">意愿高</option>
+                            <option value="已签约">已签约</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="wechat">微信名称</label>
-                        <input type="text" id="wechat" name="wechat" placeholder="请输入微信名称">
+                        <label for="note">备注</label>
+                        <textarea id="note" name="note" maxlength="200" placeholder="请输入备注信息（最多200字）" rows="3"></textarea>
+                        <span class="char-count"><span id="note-count">0</span>/200</span>
                     </div>
 
                     <div class="form-actions">
@@ -137,10 +136,10 @@
                                 <th>姓名</th>
                                 <th>店铺</th>
                                 <th>熟练度</th>
-                                <th>年龄</th>
-                                <th>性格</th>
+                                <th>地址</th>
+                                <th>店铺种类</th>
                                 <th>意愿</th>
-                                <th>微信</th>
+                                <th>备注</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -163,26 +162,13 @@
                     </div>
 
                     <div class="filter-group">
-                        <label for="search-age">按年龄搜索</label>
-                        <select id="search-age">
-                            <option value="">所有年龄段</option>
-                            <option value="30以下">30以下</option>
-                            <option value="30-40">30-40</option>
-                            <option value="40-50">40-50</option>
-                            <option value="50-60">50-60</option>
-                            <option value="60-70">60-70</option>
-                            <option value="70及以上">70及以上</option>
-                        </select>
-                    </div>
-
-                    <div class="filter-group">
                         <label for="search-shop">按店铺挡位搜索</label>
                         <select id="search-shop">
                             <option value="">所有店铺挡位</option>
-                            <option value="3000以下">3000以下</option>
-                            <option value="3000-5000">3000-5000</option>
-                            <option value="6000-9000">6000-9000</option>
-                            <option value="10000及以上">10000及以上</option>
+                            <option value="3千以下">3千以下</option>
+                            <option value="3千-4千">3千-4千</option>
+                            <option value="4千-6千">4千-6千</option>
+                            <option value="6千以上">6千以上</option>
                         </select>
                     </div>
 
@@ -197,13 +183,26 @@
                     </div>
 
                     <div class="filter-group">
-                        <label for="search-personality">按性格搜索</label>
-                        <select id="search-personality">
-                            <option value="">所有性格</option>
-                            <option value="温和">温和</option>
-                            <option value="普通">普通</option>
-                            <option value="冷淡">冷淡</option>
-                            <option value="急躁">急躁</option>
+                        <label for="search-address">按地址搜索</label>
+                        <select id="search-address">
+                            <option value="">所有地址</option>
+                            <option value="广佛">广佛</option>
+                            <option value="东莞惠州">东莞惠州</option>
+                            <option value="全深圳">全深圳</option>
+                            <option value="龙岗">龙岗</option>
+                            <option value="龙华">龙华</option>
+                            <option value="宝安">宝安</option>
+                            <option value="珠三角">珠三角</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="search-shop-type">按店铺种类搜索</label>
+                        <select id="search-shop-type">
+                            <option value="">所有店铺种类</option>
+                            <option value="零食店">零食店</option>
+                            <option value="空铺">空铺</option>
+                            <option value="成品店">成品店</option>
                         </select>
                     </div>
 
@@ -211,11 +210,11 @@
                         <label for="search-willingness">按意愿程度搜索</label>
                         <select id="search-willingness">
                             <option value="">所有意愿程度</option>
-                            <option value="非常低">非常低</option>
-                            <option value="较低">较低</option>
-                            <option value="一般">一般</option>
-                            <option value="较高">较高</option>
-                            <option value="非常高">非常高</option>
+                            <option value="未联系">未联系</option>
+                            <option value="意愿低">意愿低</option>
+                            <option value="洽谈中">洽谈中</option>
+                            <option value="意愿高">意愿高</option>
+                            <option value="已签约">已签约</option>
                         </select>
                     </div>
 
@@ -235,10 +234,10 @@
                                     <th>姓名</th>
                                     <th>店铺</th>
                                     <th>熟练度</th>
-                                    <th>年龄</th>
-                                    <th>性格</th>
+                                    <th>地址</th>
+                                    <th>店铺种类</th>
                                     <th>意愿</th>
-                                    <th>微信</th>
+                                    <th>备注</th>
                                 </tr>
                             </thead>
                             <tbody id="search-table-body">

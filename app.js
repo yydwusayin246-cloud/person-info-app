@@ -198,6 +198,15 @@ function setupNavigation() {
 function setupFormHandler() {
     const form = document.getElementById('input-form');
 
+    // 备注字数统计
+    const noteField = document.getElementById('note');
+    const noteCount = document.getElementById('note-count');
+    if (noteField && noteCount) {
+        noteField.addEventListener('input', () => {
+            noteCount.textContent = noteField.value.length;
+        });
+    }
+
     const resetBtn = form.querySelector('button[type="reset"]');
     resetBtn.addEventListener('click', (e) => {
         if (form.dataset.editId) {
@@ -213,22 +222,26 @@ function setupFormHandler() {
         const isEditing = !!form.dataset.editId;
         const personId = isEditing ? parseInt(form.dataset.editId) : Date.now();
 
+        // 收集多选 checkbox 值
+        const shopLevel = Array.from(document.querySelectorAll('input[name="shopLevel"]:checked'))
+            .map(cb => cb.value).join('、');
+        const address = Array.from(document.querySelectorAll('input[name="address"]:checked'))
+            .map(cb => cb.value).join('、');
+
         const person = {
             id: personId,
             name: document.getElementById('name').value.trim(),
-            shopLevel: document.getElementById('shop-level').value,
+            shopLevel: shopLevel,
             skillLevel: document.getElementById('skill-level').value,
-            age: document.getElementById('age').value,
-            personality: document.getElementById('personality').value,
+            address: address,
+            shopType: document.getElementById('shop-type').value,
             willingness: document.getElementById('willingness').value,
-            wechat: document.getElementById('wechat').value.trim(),
+            note: document.getElementById('note').value.trim(),
         };
 
         if (!person.name) { alert('请输入姓名！'); return; }
         if (!person.shopLevel) { alert('请选择店铺挡位！'); return; }
         if (!person.skillLevel) { alert('请选择行业熟练程度！'); return; }
-        if (!person.age) { alert('请选择年龄！'); return; }
-        if (!person.personality) { alert('请选择性格特点！'); return; }
         if (!person.willingness) { alert('请选择意愿程度！'); return; }
 
         await savePerson(person);
@@ -236,6 +249,8 @@ function setupFormHandler() {
         form.reset();
         delete form.dataset.editId;
         restoreEditUI();
+        // 重置字符计数
+        document.getElementById('note-count').textContent = '0';
 
         alert(isEditing ? '✅ 信息已更新！' : '✅ 信息已保存！');
 
@@ -254,19 +269,19 @@ function setupSearchHandler() {
 
 async function performSearch() {
     const name = document.getElementById('search-name').value.trim().toLowerCase();
-    const age = document.getElementById('search-age').value;
     const shop = document.getElementById('search-shop').value;
     const skill = document.getElementById('search-skill').value;
-    const personality = document.getElementById('search-personality').value;
+    const address = document.getElementById('search-address').value;
+    const shopType = document.getElementById('search-shop-type').value;
     const willingness = document.getElementById('search-willingness').value;
 
     let results = await getPeople();
 
     if (name) results = results.filter(p => p.name.toLowerCase().includes(name));
-    if (age) results = results.filter(p => p.age === age);
-    if (shop) results = results.filter(p => p.shopLevel === shop);
+    if (shop) results = results.filter(p => p.shopLevel && p.shopLevel.includes(shop));
     if (skill) results = results.filter(p => p.skillLevel === skill);
-    if (personality) results = results.filter(p => p.personality === personality);
+    if (address) results = results.filter(p => p.address && p.address.includes(address));
+    if (shopType) results = results.filter(p => p.shopType === shopType);
     if (willingness) results = results.filter(p => p.willingness === willingness);
 
     displaySearchResults(results);
@@ -274,10 +289,10 @@ async function performSearch() {
 
 function clearSearchFilters() {
     document.getElementById('search-name').value = '';
-    document.getElementById('search-age').value = '';
     document.getElementById('search-shop').value = '';
     document.getElementById('search-skill').value = '';
-    document.getElementById('search-personality').value = '';
+    document.getElementById('search-address').value = '';
+    document.getElementById('search-shop-type').value = '';
     document.getElementById('search-willingness').value = '';
     document.getElementById('search-results').style.display = 'none';
     document.getElementById('no-results').style.display = 'none';
@@ -302,15 +317,16 @@ function displaySearchResults(results) {
 
     results.forEach((person, index) => {
         const row = document.createElement('tr');
+        const willClass = getWillingnessClass(person.willingness);
         row.innerHTML = `
             <td>${index + 1}</td>
             <td>${escapeHtml(person.name)}</td>
             <td>${escapeHtml(person.shopLevel) || '—'}</td>
             <td>${escapeHtml(person.skillLevel) || '—'}</td>
-            <td>${escapeHtml(person.age) || '—'}</td>
-            <td>${escapeHtml(person.personality) || '—'}</td>
-            <td>${escapeHtml(person.willingness) || '—'}</td>
-            <td>${escapeHtml(person.wechat) || '—'}</td>
+            <td>${escapeHtml(person.address) || '—'}</td>
+            <td>${escapeHtml(person.shopType) || '—'}</td>
+            <td><span class="will-tag ${willClass}">${escapeHtml(person.willingness) || '—'}</span></td>
+            <td class="note-cell">${escapeHtml(person.note) || '—'}</td>
         `;
         tbody.appendChild(row);
     });
@@ -333,15 +349,16 @@ async function refreshList() {
     tbody.innerHTML = '';
     people.forEach((person, index) => {
         const row = document.createElement('tr');
+        const willClass = getWillingnessClass(person.willingness);
         row.innerHTML = `
             <td>${index + 1}</td>
             <td>${escapeHtml(person.name)}</td>
             <td>${escapeHtml(person.shopLevel) || '—'}</td>
             <td>${escapeHtml(person.skillLevel) || '—'}</td>
-            <td>${escapeHtml(person.age) || '—'}</td>
-            <td>${escapeHtml(person.personality) || '—'}</td>
-            <td>${escapeHtml(person.willingness) || '—'}</td>
-            <td>${escapeHtml(person.wechat) || '—'}</td>
+            <td>${escapeHtml(person.address) || '—'}</td>
+            <td>${escapeHtml(person.shopType) || '—'}</td>
+            <td><span class="will-tag ${willClass}">${escapeHtml(person.willingness) || '—'}</span></td>
+            <td class="note-cell">${escapeHtml(person.note) || '—'}</td>
             <td>
                 <div class="actions">
                     <button class="btn btn-edit" onclick="editPerson(${person.id})">✏️ 编辑</button>
@@ -360,6 +377,18 @@ async function deletePerson(id) {
     await deletePersonFromDB(id);
     await refreshList();
     alert('✅ 记录已删除！');
+}
+
+/** 意愿程度对应的颜色 CSS 类名 */
+function getWillingnessClass(value) {
+    const map = {
+        '未联系': 'will-gray',
+        '意愿低': 'will-purple',
+        '洽谈中': 'will-orange',
+        '意愿高': 'will-blue',
+        '已签约': 'will-green'
+    };
+    return map[value] || '';
 }
 
 // ==================== 编辑人员 ====================
@@ -426,13 +455,25 @@ async function editPerson(id) {
         return;
     }
 
+    // 文本/单选字段
     document.getElementById('name').value = person.name;
-    document.getElementById('shop-level').value = person.shopLevel;
     document.getElementById('skill-level').value = person.skillLevel;
-    document.getElementById('age').value = person.age;
-    document.getElementById('personality').value = person.personality;
     document.getElementById('willingness').value = person.willingness;
-    document.getElementById('wechat').value = person.wechat;
+    document.getElementById('shop-type').value = person.shopType || '';
+    document.getElementById('note').value = person.note || '';
+    document.getElementById('note-count').textContent = (person.note || '').length;
+
+    // 多选 checkbox — 店铺挡位
+    const shopValues = (person.shopLevel || '').split('、');
+    document.querySelectorAll('input[name="shopLevel"]').forEach(cb => {
+        cb.checked = shopValues.includes(cb.value);
+    });
+
+    // 多选 checkbox — 地址
+    const addrValues = (person.address || '').split('、');
+    document.querySelectorAll('input[name="address"]').forEach(cb => {
+        cb.checked = addrValues.includes(cb.value);
+    });
 
     const form = document.getElementById('input-form');
     form.dataset.editId = id;
