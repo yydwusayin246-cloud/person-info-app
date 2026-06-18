@@ -1,5 +1,5 @@
 // Service Worker - 处理离线缓存和后台服务
-const CACHE_NAME = 'person-info-app-v2';
+const CACHE_NAME = 'person-info-app-v3';
 
 const BASE_PATH = self.location.pathname.replace(/\/[^/]*$/, '');
 const urlsToCache = [
