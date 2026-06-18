@@ -30,7 +30,7 @@ self.addEventListener('install', event => {
                 const progress = Math.round((index + 1) / urlsToCache.length * 100);
                 
                 // 发送进度消息到客户端
-                self.clients.matchAll().then(clients => {
+                self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then(clients => {
                   clients.forEach(client => {
                     client.postMessage({
                       type: 'CACHE_PROGRESS',
@@ -57,7 +57,7 @@ self.addEventListener('install', event => {
         console.log('✅ 所有文件已缓存完成！');
         
         // 通知客户端缓存完成
-        return self.clients.matchAll().then(clients => {
+        return self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then(clients => {
           clients.forEach(client => {
             client.postMessage({
               type: 'CACHE_COMPLETE',
@@ -150,6 +150,23 @@ self.addEventListener('fetch', event => {
           });
       })
   );
+});
+
+// 监听来自页面的消息
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'GET_CACHE_STATUS') {
+    // 页面询问缓存状态，检查是否已缓存
+    caches.open(CACHE_NAME).then(cache => {
+      cache.keys().then(keys => {
+        if (keys.length > 0) {
+          // 已有缓存，直接回复
+          event.ports && event.ports[0] && event.ports[0].postMessage({ type: 'CACHE_STATUS' });
+        }
+      });
+    });
+    // 同时通过 clients 回复（兼容不同消息通道）
+    event.source && event.source.postMessage({ type: 'CACHE_STATUS' });
+  }
 });
 
 // 监听推送通知

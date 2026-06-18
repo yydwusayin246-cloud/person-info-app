@@ -296,8 +296,18 @@
                     console.log('✅ 缓存完成');
                     updateProgress(100, 5, 5);
                     hideProgress();
+                } else if (data.type === 'CACHE_STATUS') {
+                    // SW 回复：已在缓存中
+                    console.log('📦 应用已在缓存中，无需重新下载');
+                    hideProgress();
                 }
             };
+
+            // 安全兜底：最多 5 秒后自动隐藏进度条
+            let progressTimeout = setTimeout(() => {
+                console.log('⏰ 进度条超时，自动隐藏');
+                hideProgress();
+            }, 5000);
 
             window.addEventListener('load', () => {
                 showProgress();
@@ -311,10 +321,23 @@
                 navigator.serviceWorker.register('sw.js')
                     .then(registration => {
                         console.log('✅ Service Worker 注册成功');
+
+                        // 如果 SW 没有在安装（已经缓存过），直接隐藏进度条
+                        if (!registration.installing && !registration.waiting) {
+                            // 给 SW 一点时间回复缓存状态
+                            setTimeout(() => {
+                                if (document.getElementById('install-progress').classList.contains('show')) {
+                                    console.log('📦 SW 已就绪，隐藏进度条');
+                                    hideProgress();
+                                    clearTimeout(progressTimeout);
+                                }
+                            }, 1500);
+                        }
                     })
                     .catch(error => {
                         console.log('⚠️ Service Worker 注册失败');
                         hideProgress();
+                        clearTimeout(progressTimeout);
                     });
             });
         } else {
