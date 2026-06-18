@@ -127,18 +127,6 @@ html, body {
     border: 1px solid #e0e0e0;
 }
 
-/* 编辑模式高亮 */
-#input-form.editing {
-    border-color: #E91E63;
-    box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.15);
-    animation: pulse-border 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse-border {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.15); }
-    50% { box-shadow: 0 0 0 6px rgba(233, 30, 99, 0.05); }
-}
-
 .form-group {
     margin-bottom: 20px;
 }
@@ -416,7 +404,7 @@ html, body {
 }
 
 #install-progress.show {
-    display: block !important;
+    display: block;
     animation: slideDown 0.3s ease;
 }
 

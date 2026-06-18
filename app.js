@@ -4,24 +4,12 @@ const DB_VERSION = 1;
 const STORE_NAME = 'people';
 const OLD_STORAGE_KEY = 'personInfoData'; // 旧版 localStorage 键名，用于首次迁移
 
-/** HTML 转义，防止 XSS 攻击 */
-function escapeHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
 /**
- * 打开 IndexedDB 数据库（单例复用连接）
+ * 打开 IndexedDB 数据库
  * 数据库文件存储在手机/浏览器的本地文件系统中，不会被系统随意清理
  */
-let _dbPromise = null;
-
 function openDB() {
-    if (_dbPromise) return _dbPromise;
-
-    _dbPromise = new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         // 首次创建或版本升级时触发
@@ -35,22 +23,14 @@ function openDB() {
         };
 
         request.onsuccess = (event) => {
-            const db = event.target.result;
-            // 监听连接关闭事件（如用户清除浏览器数据），重置 Promise 以便下次重新连接
-            db.onclose = () => {
-                _dbPromise = null;
-            };
-            resolve(db);
+            resolve(event.target.result);
         };
 
         request.onerror = (event) => {
-            _dbPromise = null; // 失败时重置，允许重试
             console.error('❌ IndexedDB 打开失败:', event.target.error);
             reject(event.target.error);
         };
     });
-
-    return _dbPromise;
 }
 
 // ==================== 数据 CRUD 操作（全部基于 IndexedDB） ====================
@@ -69,6 +49,9 @@ async function getPeople() {
             };
             request.onerror = () => {
                 reject(request.error);
+            };
+            transaction.oncomplete = () => {
+                db.close();
             };
         });
     } catch (err) {
@@ -91,6 +74,9 @@ async function savePerson(person) {
         request.onerror = () => {
             reject(request.error);
         };
+        transaction.oncomplete = () => {
+            db.close();
+        };
     });
 }
 
@@ -108,24 +94,9 @@ async function deletePersonFromDB(id) {
         request.onerror = () => {
             reject(request.error);
         };
-    });
-}
-
-/** 批量保存人员（单事务，用于高性能导入） */
-async function batchSavePeople(people) {
-    if (!people || people.length === 0) return 0;
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORE_NAME, 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-
-        transaction.onerror = () => { reject(transaction.error); };
-        transaction.onabort = () => { reject(new Error('批量保存事务被中止')); };
-        transaction.oncomplete = () => { resolve(people.length); };
-
-        people.forEach(person => {
-            store.put(person);
-        });
+        transaction.oncomplete = () => {
+            db.close();
+        };
     });
 }
 
@@ -136,28 +107,22 @@ async function replaceAllPeople(people) {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
 
-        // 事务级别错误处理
-        transaction.onerror = () => {
-            reject(transaction.error);
-        };
-        transaction.onabort = () => {
-            reject(new Error('事务被中止'));
-        };
-
         // 清空旧数据
         const clearRequest = store.clear();
         clearRequest.onsuccess = () => {
             // 写入新数据
+            let count = 0;
             people.forEach(person => {
                 store.put(person);
+                count++;
             });
+            transaction.oncomplete = () => {
+                db.close();
+                resolve(count);
+            };
         };
         clearRequest.onerror = () => {
             reject(clearRequest.error);
-        };
-
-        transaction.oncomplete = () => {
-            resolve(people.length);
         };
     });
 }
@@ -194,6 +159,7 @@ async function migrateFromLocalStorage() {
 
         await new Promise((resolve, reject) => {
             transaction.oncomplete = () => {
+                db.close();
                 resolve();
             };
             transaction.onerror = () => reject(transaction.error);
@@ -226,28 +192,18 @@ function initializeApp() {
 // ==================== 设置导航 ====================
 
 function setupNavigation() {
-    // 只选中带有 data-screen 属性的导航按钮，排除安装按钮等
-    const navBtns = document.querySelectorAll('.nav-btn[data-screen]');
+    const navBtns = document.querySelectorAll('.nav-btn');
     const screens = document.querySelectorAll('.screen');
 
     navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const screenId = btn.dataset.screen;
-            if (!screenId) return; // 安全兜底
-
-            // 离开输入界面时，清除编辑状态
-            if (screenId !== 'input') {
-                cancelEdit();
-            }
 
             navBtns.forEach(b => b.classList.remove('active'));
             screens.forEach(s => s.classList.remove('active'));
 
             btn.classList.add('active');
-            const targetScreen = document.getElementById(`${screenId}-screen`);
-            if (targetScreen) {
-                targetScreen.classList.add('active');
-            }
+            document.getElementById(`${screenId}-screen`).classList.add('active');
 
             if (screenId === 'list') {
                 refreshList();
@@ -260,18 +216,6 @@ function setupNavigation() {
 
 function setupFormHandler() {
     const form = document.getElementById('input-form');
-
-    // 编辑模式下点击"取消编辑"按钮
-    const resetBtn = form.querySelector('button[type="reset"]');
-    resetBtn.addEventListener('click', (e) => {
-        if (form.dataset.editId) {
-            e.preventDefault();
-            cancelEdit();
-            // 切换到列表界面
-            document.querySelector('[data-screen="list"]').click();
-        }
-    });
-
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -304,7 +248,6 @@ function setupFormHandler() {
         // 清理编辑状态
         form.reset();
         delete form.dataset.editId;
-        restoreEditUI();
 
         // 提示并跳转
         alert(isEditing ? '✅ 信息已更新！' : '✅ 信息已保存！');
@@ -374,13 +317,13 @@ function displaySearchResults(results) {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td>${escapeHtml(person.name)}</td>
-            <td>${escapeHtml(person.shopLevel) || '—'}</td>
-            <td>${escapeHtml(person.skillLevel) || '—'}</td>
-            <td>${escapeHtml(person.age) || '—'}</td>
-            <td>${escapeHtml(person.personality) || '—'}</td>
-            <td>${escapeHtml(person.willingness) || '—'}</td>
-            <td>${escapeHtml(person.wechat) || '—'}</td>
+            <td>${person.name}</td>
+            <td>${person.shopLevel || '—'}</td>
+            <td>${person.skillLevel || '—'}</td>
+            <td>${person.age || '—'}</td>
+            <td>${person.personality || '—'}</td>
+            <td>${person.willingness || '—'}</td>
+            <td>${person.wechat || '—'}</td>
         `;
         tbody.appendChild(row);
     });
@@ -405,13 +348,13 @@ async function refreshList() {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td>${escapeHtml(person.name)}</td>
-            <td>${escapeHtml(person.shopLevel) || '—'}</td>
-            <td>${escapeHtml(person.skillLevel) || '—'}</td>
-            <td>${escapeHtml(person.age) || '—'}</td>
-            <td>${escapeHtml(person.personality) || '—'}</td>
-            <td>${escapeHtml(person.willingness) || '—'}</td>
-            <td>${escapeHtml(person.wechat) || '—'}</td>
+            <td>${person.name}</td>
+            <td>${person.shopLevel || '—'}</td>
+            <td>${person.skillLevel || '—'}</td>
+            <td>${person.age || '—'}</td>
+            <td>${person.personality || '—'}</td>
+            <td>${person.willingness || '—'}</td>
+            <td>${person.wechat || '—'}</td>
             <td>
                 <div class="actions">
                     <button class="btn btn-edit" onclick="editPerson(${person.id})">✏️ 编辑</button>
@@ -435,62 +378,6 @@ async function deletePerson(id) {
 
 // ==================== 编辑人员 ====================
 
-/** 取消编辑状态，清空表单并恢复 UI */
-function cancelEdit() {
-    const form = document.getElementById('input-form');
-    if (form.dataset.editId) {
-        form.reset();
-        delete form.dataset.editId;
-        restoreEditUI();
-    }
-}
-
-/** 进入编辑模式的 UI 变化 */
-function setEditUI() {
-    const heading = document.querySelector('#input-screen h2');
-    const submitBtn = document.querySelector('#input-form button[type="submit"]');
-    const resetBtn = document.querySelector('#input-form button[type="reset"]');
-    const form = document.getElementById('input-form');
-
-    if (heading) {
-        heading.textContent = '✏️ 编辑人员信息';
-        heading.style.color = '#E91E63';
-    }
-    if (submitBtn) {
-        submitBtn.textContent = '💾 更新';
-        submitBtn.style.background = '#E91E63';
-    }
-    if (resetBtn) {
-        resetBtn.textContent = '❌ 取消编辑';
-        resetBtn.style.background = '#ff6b6b';
-        resetBtn.style.color = 'white';
-    }
-    form.classList.add('editing');
-}
-
-/** 恢复新增模式的 UI */
-function restoreEditUI() {
-    const heading = document.querySelector('#input-screen h2');
-    const submitBtn = document.querySelector('#input-form button[type="submit"]');
-    const resetBtn = document.querySelector('#input-form button[type="reset"]');
-    const form = document.getElementById('input-form');
-
-    if (heading) {
-        heading.textContent = '📝 输入人员信息';
-        heading.style.color = '#333';
-    }
-    if (submitBtn) {
-        submitBtn.textContent = '✅ 保存';
-        submitBtn.style.background = '';
-    }
-    if (resetBtn) {
-        resetBtn.textContent = '🔄 清空';
-        resetBtn.style.background = '';
-        resetBtn.style.color = '';
-    }
-    form.classList.remove('editing');
-}
-
 async function editPerson(id) {
     const people = await getPeople();
     const person = people.find(p => p.id === id);
@@ -510,9 +397,6 @@ async function editPerson(id) {
 
     const form = document.getElementById('input-form');
     form.dataset.editId = id;
-
-    // 更新 UI 为编辑模式
-    setEditUI();
 
     document.querySelector('[data-screen="input"]').click();
     window.scrollTo(0, 0);
@@ -585,12 +469,12 @@ function importData(event) {
                 await replaceAllPeople(importObj.data);
                 alert(`✅ 数据已替换！共导入 ${count} 条记录。`);
             } else {
-                // 合并模式：以 id 去重，保留已有数据优先（单事务批量写入）
+                // 合并模式：以 id 去重，保留已有数据优先
                 const existing = await getPeople();
                 const existingIds = new Set(existing.map(p => p.id));
                 const newItems = importObj.data.filter(p => !existingIds.has(p.id));
-                if (newItems.length > 0) {
-                    await batchSavePeople(newItems);
+                for (const person of newItems) {
+                    await savePerson(person);
                 }
                 const merged = await getPeople();
                 alert(`✅ 数据已合并！新增 ${newItems.length} 条记录（共 ${merged.length} 条）。`);
@@ -629,8 +513,8 @@ if (typeof window !== 'undefined') {
                 const transaction = db.transaction(STORE_NAME, 'readwrite');
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.clear();
-                request.onsuccess = () => { resolve(); alert('✅ 数据已清空'); };
-                request.onerror = () => { reject(request.error); };
+                request.onsuccess = () => { db.close(); resolve(); alert('✅ 数据已清空'); };
+                request.onerror = () => { db.close(); reject(request.error); };
             });
         }
     };
