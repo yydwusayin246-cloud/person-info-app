@@ -502,6 +502,28 @@ html, body {
 }
 
 /* ===== 搜索过滤 ===== */
+.filter-toggle {
+    display: none;
+    text-align: center;
+    padding: 8px;
+    background: #f0f0f0;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #667eea;
+    font-weight: 600;
+    user-select: none;
+}
+
+.filter-toggle.show {
+    display: block;
+}
+
+.search-filters.collapsed {
+    display: none;
+}
+
 .search-filters {
     background: #f9f9f9;
     padding: 20px;

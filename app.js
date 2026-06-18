@@ -332,6 +332,20 @@ function setupSearchHandler() {
     document.getElementById('clear-search-btn').addEventListener('click', clearSearchFilters);
 }
 
+/** 切换筛选区展开/收起 */
+function toggleFilters() {
+    const panel = document.getElementById('search-filters-panel');
+    const toggle = document.getElementById('filter-toggle');
+    const isCollapsed = panel.classList.contains('collapsed');
+    if (isCollapsed) {
+        panel.classList.remove('collapsed');
+        toggle.querySelector('span').textContent = '🔼 收起筛选';
+    } else {
+        panel.classList.add('collapsed');
+        toggle.querySelector('span').textContent = '🔽 展开筛选';
+    }
+}
+
 async function performSearch() {
     const name = document.getElementById('search-name').value.trim().toLowerCase();
     const skill = document.getElementById('search-skill').value;
@@ -363,19 +377,31 @@ async function performSearch() {
     }
 
     displaySearchResults(results);
+    // 搜索后自动收起筛选区，让结果全屏展示
+    const panel = document.getElementById('search-filters-panel');
+    const toggle = document.getElementById('filter-toggle');
+    panel.classList.add('collapsed');
+    toggle.classList.add('show');
+    toggle.querySelector('span').textContent = '🔽 展开筛选';
     // 滚动到搜索结果
-    document.getElementById('search-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => {
+        document.getElementById('search-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
 }
 
 function clearSearchFilters() {
     document.getElementById('search-name').value = '';
     document.getElementById('search-skill').value = '';
     document.getElementById('search-willingness').value = '';
-    // 清空所有多选 checkbox
     document.querySelectorAll('input[name="searchShop"], input[name="searchAddress"], input[name="searchShopType"]')
         .forEach(cb => { cb.checked = false; });
     document.getElementById('search-results').style.display = 'none';
     document.getElementById('no-results').style.display = 'none';
+    // 恢复筛选区展开
+    const panel = document.getElementById('search-filters-panel');
+    const toggle = document.getElementById('filter-toggle');
+    panel.classList.remove('collapsed');
+    toggle.classList.remove('show');
 }
 
 function displaySearchResults(results) {
