@@ -119,6 +119,54 @@ async function replaceAllPeople(people) {
     });
 }
 
+// ==================== OPFS 自动备份（手机本地文件） ====================
+
+const BACKUP_FILENAME = 'person_info_backup.json';
+
+/** 获取 OPFS 备份目录 */
+async function getBackupDir() {
+    const root = await navigator.storage.getDirectory();
+    return root;
+}
+
+/** 自动备份：每次数据变更后调用，写入 OPFS 固定文件 */
+async function autoBackup() {
+    try {
+        const people = await getPeople();
+        const backupData = {
+            version: 2,
+            updatedAt: new Date().toISOString(),
+            totalCount: people.length,
+            data: people
+        };
+        const root = await getBackupDir();
+        const fileHandle = await root.getFileHandle(BACKUP_FILENAME, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(backupData, null, 2));
+        await writable.close();
+        console.log('✅ 自动备份完成 (' + people.length + ' 条)');
+    } catch (err) {
+        console.warn('⚠️ 自动备份失败（不影响使用）:', err.message);
+    }
+}
+
+/** 从 OPFS 恢复备份（如 IndexedDB 被清空时使用） */
+async function restoreFromBackup() {
+    try {
+        const root = await getBackupDir();
+        const fileHandle = await root.getFileHandle(BACKUP_FILENAME);
+        const file = await fileHandle.getFile();
+        const text = await file.text();
+        const backup = JSON.parse(text);
+        if (backup.data && Array.isArray(backup.data) && backup.data.length > 0) {
+            return backup;
+        }
+    } catch (err) {
+        // 文件不存在是正常的（首次使用）
+    }
+    return null;
+}
+
 // ==================== 首次运行：从旧版 localStorage 迁移数据 ====================
 
 async function migrateFromLocalStorage() {
@@ -152,6 +200,16 @@ async function migrateFromLocalStorage() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await migrateFromLocalStorage();
+    // IndexedDB 为空时尝试从 OPFS 恢复
+    const people = await getPeople();
+    if (people.length === 0) {
+        const backup = await restoreFromBackup();
+        if (backup && backup.data.length > 0) {
+            await replaceAllPeople(backup.data);
+            const restoredDate = new Date(backup.updatedAt).toLocaleString('zh-CN');
+            console.log('🔄 已从 OPFS 备份恢复 ' + backup.data.length + ' 条数据 (备份时间: ' + restoredDate + ')');
+        }
+    }
     initializeApp();
 });
 
@@ -245,6 +303,7 @@ function setupFormHandler() {
         if (!person.willingness) { alert('请选择意愿程度！'); return; }
 
         await savePerson(person);
+        autoBackup(); // 自动备份到 OPFS（不阻塞 UI）
 
         form.reset();
         delete form.dataset.editId;
@@ -389,6 +448,7 @@ async function deletePerson(id) {
     if (!confirm('确定要删除这条记录吗？')) return;
     await deletePersonFromDB(id);
     await refreshList();
+    autoBackup(); // 自动备份
     alert('✅ 记录已删除！');
 }
 
@@ -572,6 +632,7 @@ function importData(event) {
             }
 
             await refreshList();
+            autoBackup(); // 导入后自动备份
         } catch (err) {
             console.error('导入失败:', err);
             alert('❌ 无法解析文件，请确保选择的是 JSON 格式的备份文件。');
