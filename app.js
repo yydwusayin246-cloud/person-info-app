@@ -585,25 +585,23 @@ async function exportData() {
     const filename = `人员信息备份_${dateStr}.json`;
     const isWechat = /micromessenger/i.test(navigator.userAgent);
 
-    // 微信内：用分享面板直接发给好友或文件传输助手
-    if (isWechat && navigator.share) {
-        const blob = new Blob([jsonStr], { type: 'application/json' });
-        const file = new File([blob], filename, { type: 'application/json' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({ files: [file], title: '人员信息备份' });
-                setTimeout(() => alert('✅ 备份已发送！（' + people.length + ' 条记录）'), 500);
-                return;
-            } catch (err) {
-                if (err.name === 'AbortError') return;
-            }
-        }
+    // 微信内：下载文件 + 复制到剪贴板
+    if (isWechat) {
         try {
-            await navigator.share({ title: '人员信息备份', text: jsonStr });
-            setTimeout(() => alert('✅ 备份已发送！（' + people.length + ' 条记录）'), 500);
+            await navigator.clipboard.writeText(jsonStr);
+            // 也触发下载
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert(`✅ 备份数据已复制到剪贴板！（${people.length} 条记录）\n\n💡 打开微信聊天，长按输入框→粘贴，即可发送给好友`);
             return;
         } catch (err) {
-            if (err.name === 'AbortError') return;
+            // 剪贴板失败，只下载
         }
     }
 
