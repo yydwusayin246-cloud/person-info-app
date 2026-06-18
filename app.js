@@ -269,31 +269,44 @@ function setupSearchHandler() {
 
 async function performSearch() {
     const name = document.getElementById('search-name').value.trim().toLowerCase();
-    const shop = document.getElementById('search-shop').value;
     const skill = document.getElementById('search-skill').value;
-    const address = document.getElementById('search-address').value;
-    const shopType = document.getElementById('search-shop-type').value;
     const willingness = document.getElementById('search-willingness').value;
+
+    // 收集多选 checkbox 值
+    const shopList = Array.from(document.querySelectorAll('input[name="searchShop"]:checked'))
+        .map(cb => cb.value);
+    const addrList = Array.from(document.querySelectorAll('input[name="searchAddress"]:checked'))
+        .map(cb => cb.value);
+    const typeList = Array.from(document.querySelectorAll('input[name="searchShopType"]:checked'))
+        .map(cb => cb.value);
 
     let results = await getPeople();
 
     if (name) results = results.filter(p => p.name.toLowerCase().includes(name));
-    if (shop) results = results.filter(p => p.shopLevel && p.shopLevel.includes(shop));
     if (skill) results = results.filter(p => p.skillLevel === skill);
-    if (address) results = results.filter(p => p.address && p.address.includes(address));
-    if (shopType) results = results.filter(p => p.shopType === shopType);
     if (willingness) results = results.filter(p => p.willingness === willingness);
+
+    // 多选字段：匹配任一选中值即通过 (OR 逻辑)
+    if (shopList.length > 0) {
+        results = results.filter(p => shopList.some(v => p.shopLevel && p.shopLevel.includes(v)));
+    }
+    if (addrList.length > 0) {
+        results = results.filter(p => addrList.some(v => p.address && p.address.includes(v)));
+    }
+    if (typeList.length > 0) {
+        results = results.filter(p => typeList.some(v => p.shopType === v));
+    }
 
     displaySearchResults(results);
 }
 
 function clearSearchFilters() {
     document.getElementById('search-name').value = '';
-    document.getElementById('search-shop').value = '';
     document.getElementById('search-skill').value = '';
-    document.getElementById('search-address').value = '';
-    document.getElementById('search-shop-type').value = '';
     document.getElementById('search-willingness').value = '';
+    // 清空所有多选 checkbox
+    document.querySelectorAll('input[name="searchShop"], input[name="searchAddress"], input[name="searchShopType"]')
+        .forEach(cb => { cb.checked = false; });
     document.getElementById('search-results').style.display = 'none';
     document.getElementById('no-results').style.display = 'none';
 }
