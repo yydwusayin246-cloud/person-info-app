@@ -199,16 +199,20 @@ async function migrateFromLocalStorage() {
 // ==================== 应用初始化 ====================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await migrateFromLocalStorage();
-    // IndexedDB 为空时尝试从 OPFS 恢复
-    const people = await getPeople();
-    if (people.length === 0) {
-        const backup = await restoreFromBackup();
-        if (backup && backup.data.length > 0) {
-            await replaceAllPeople(backup.data);
-            const restoredDate = new Date(backup.updatedAt).toLocaleString('zh-CN');
-            console.log('🔄 已从 OPFS 备份恢复 ' + backup.data.length + ' 条数据 (备份时间: ' + restoredDate + ')');
+    try {
+        await migrateFromLocalStorage();
+        // IndexedDB 为空时尝试从 OPFS 恢复
+        const people = await getPeople();
+        if (people.length === 0) {
+            const backup = await restoreFromBackup();
+            if (backup && backup.data.length > 0) {
+                await replaceAllPeople(backup.data);
+                const restoredDate = new Date(backup.updatedAt).toLocaleString('zh-CN');
+                console.log('🔄 已从 OPFS 备份恢复 ' + backup.data.length + ' 条数据 (备份时间: ' + restoredDate + ')');
+            }
         }
+    } catch (err) {
+        console.warn('⚠️ 初始化备份检查失败，继续启动:', err.message);
     }
     initializeApp();
 });
