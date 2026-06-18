@@ -336,6 +336,7 @@ function setupSearchHandler() {
 function toggleFilters() {
     const panel = document.getElementById('search-filters-panel');
     const toggle = document.getElementById('filter-toggle');
+    if (!panel || !toggle) return;
     const isCollapsed = panel.classList.contains('collapsed');
     if (isCollapsed) {
         panel.classList.remove('collapsed');
@@ -377,24 +378,21 @@ async function performSearch() {
     }
 
     displaySearchResults(results);
-    // 搜索后收起筛选区，结果全屏
-    const panel = document.getElementById('search-filters-panel');
-    const toggle = document.getElementById('filter-toggle');
-    panel.classList.add('collapsed');
-    toggle.classList.add('show');
-    toggle.querySelector('span').textContent = '🔽 展开筛选';
-    // 滚动到结果区（移动端确保可见）
+    // 收起筛选区（新版 UI，旧版无此元素时跳过）
+    try {
+        const panel = document.getElementById('search-filters-panel');
+        const toggle = document.getElementById('filter-toggle');
+        if (panel && toggle) {
+            panel.classList.add('collapsed');
+            toggle.classList.add('show');
+            toggle.querySelector('span').textContent = '🔽 展开筛选';
+        }
+    } catch (e) { /* 旧版 HTML 忽略 */ }
+    // 滚动到结果
     setTimeout(() => {
-        const results = document.getElementById('search-results');
-        if (results) {
-            results.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // 兜底：如果 scrollIntoView 没生效，手动滚动 screen
-            setTimeout(() => {
-                const screen = document.getElementById('search-screen');
-                if (screen && results.getBoundingClientRect().top < 0) {
-                    screen.scrollBy({ top: results.getBoundingClientRect().top - 80, behavior: 'smooth' });
-                }
-            }, 300);
+        const el = document.getElementById('search-results');
+        if (el && el.style.display !== 'none') {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }, 200);
 }
@@ -410,8 +408,8 @@ function clearSearchFilters() {
     // 恢复筛选区展开
     const panel = document.getElementById('search-filters-panel');
     const toggle = document.getElementById('filter-toggle');
-    panel.classList.remove('collapsed');
-    toggle.classList.remove('show');
+    if (panel) panel.classList.remove('collapsed');
+    if (toggle) toggle.classList.remove('show');
 }
 
 function displaySearchResults(results) {
