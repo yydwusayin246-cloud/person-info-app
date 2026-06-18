@@ -359,6 +359,8 @@ async function performSearch() {
     }
 
     displaySearchResults(results);
+    // 滚动到搜索结果
+    document.getElementById('search-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function clearSearchFilters() {
