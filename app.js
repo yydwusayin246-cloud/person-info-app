@@ -589,18 +589,18 @@ async function exportData() {
     if (isWechat && navigator.share) {
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const file = new File([blob], filename, { type: 'application/json' });
-        // 微信支持 files 分享
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({ files: [file], title: '人员信息备份' });
+                setTimeout(() => alert('✅ 备份已发送！（' + people.length + ' 条记录）'), 500);
                 return;
             } catch (err) {
                 if (err.name === 'AbortError') return;
             }
         }
-        // 不支持文件分享则分享文本
         try {
             await navigator.share({ title: '人员信息备份', text: jsonStr });
+            setTimeout(() => alert('✅ 备份已发送！（' + people.length + ' 条记录）'), 500);
             return;
         } catch (err) {
             if (err.name === 'AbortError') return;
@@ -614,6 +614,7 @@ async function exportData() {
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({ files: [file], title: '人员信息备份', text: `${people.length} 条记录` });
+                alert('✅ 备份已分享！（' + people.length + ' 条记录）');
                 return;
             } catch (err) {
                 if (err.name === 'AbortError') return;
@@ -688,6 +689,31 @@ function importData(event) {
 
 function triggerImport() {
     document.getElementById('import-file-input').click();
+}
+
+/** 一键删除全部数据 */
+async function deleteAllData() {
+    const people = await getPeople();
+    if (people.length === 0) {
+        alert('⚠️ 当前没有数据，无需删除！');
+        return;
+    }
+    if (!confirm(`⚠️ 确定要删除全部 ${people.length} 条记录吗？\n\n此操作不可恢复！\n建议先备份数据。`)) return;
+    if (!confirm(`再次确认：删除全部 ${people.length} 条记录？`)) return;
+
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.clear();
+        request.onsuccess = async () => {
+            await refreshList();
+            autoBackup();
+            alert('✅ 全部数据已删除');
+            resolve();
+        };
+        request.onerror = () => reject(request.error);
+    });
 }
 
 // ==================== 调试接口 ====================

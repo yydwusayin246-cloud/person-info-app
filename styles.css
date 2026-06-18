@@ -284,6 +284,24 @@ html, body {
     flex-wrap: wrap;
 }
 
+.btn-delete-all {
+    background: #f44336;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-delete-all:hover {
+    background: #d32f2f;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
+}
+
 /* ===== 统计条 ===== */
 .stats-bar {
     background: #e8f5e9;
