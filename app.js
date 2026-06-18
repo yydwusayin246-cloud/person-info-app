@@ -1,56 +1,254 @@
-// 数据存储键
-const STORAGE_KEY = 'personInfoData';
+// ==================== IndexedDB 数据库（数据存在手机本地） ====================
+const DB_NAME = 'PersonInfoDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'people';
+const OLD_STORAGE_KEY = 'personInfoData'; // 旧版 localStorage 键名，用于首次迁移
 
-// 排序状态: null, 'asc', 'desc'
-let currentSort = { field: null, order: null };
+/** HTML 转义，防止 XSS 攻击 */
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
 
-// 年龄排序映射
-const AGE_ORDER = { '35以下': 0, '35-40': 1, '40-45': 2, '45-50': 3, '50-60': 4, '60及以上': 5 };
-// 意愿排序映射
-const WILLINGNESS_ORDER = { '非常低': 0, '较低': 1, '一般': 2, '较高': 3, '非常高': 4 };
+/**
+ * 打开 IndexedDB 数据库（单例复用连接）
+ * 数据库文件存储在手机/浏览器的本地文件系统中，不会被系统随意清理
+ */
+let _dbPromise = null;
 
-// 初始化应用
-document.addEventListener('DOMContentLoaded', () => {
+function openDB() {
+    if (_dbPromise) return _dbPromise;
+
+    _dbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        // 首次创建或版本升级时触发
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                // 建立索引，方便按姓名快速搜索
+                store.createIndex('name', 'name', { unique: false });
+            }
+        };
+
+        request.onsuccess = (event) => {
+            const db = event.target.result;
+            // 监听连接关闭事件（如用户清除浏览器数据），重置 Promise 以便下次重新连接
+            db.onclose = () => {
+                _dbPromise = null;
+            };
+            resolve(db);
+        };
+
+        request.onerror = (event) => {
+            _dbPromise = null; // 失败时重置，允许重试
+            console.error('❌ IndexedDB 打开失败:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+
+    return _dbPromise;
+}
+
+// ==================== 数据 CRUD 操作（全部基于 IndexedDB） ====================
+
+/** 获取所有人员信息 */
+async function getPeople() {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                resolve(request.result || []);
+            };
+            request.onerror = () => {
+                reject(request.error);
+            };
+        });
+    } catch (err) {
+        console.error('❌ 读取数据失败:', err);
+        return [];
+    }
+}
+
+/** 保存人员信息（新增或更新，以 id 为键） */
+async function savePerson(person) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.put(person); // put = 存在则更新，不存在则新增
+
+        request.onsuccess = () => {
+            resolve();
+        };
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+}
+
+/** 删除人员 */
+async function deletePersonFromDB(id) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.delete(id);
+
+        request.onsuccess = () => {
+            resolve();
+        };
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+}
+
+/** 批量保存人员（单事务，用于高性能导入） */
+async function batchSavePeople(people) {
+    if (!people || people.length === 0) return 0;
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+
+        transaction.onerror = () => { reject(transaction.error); };
+        transaction.onabort = () => { reject(new Error('批量保存事务被中止')); };
+        transaction.oncomplete = () => { resolve(people.length); };
+
+        people.forEach(person => {
+            store.put(person);
+        });
+    });
+}
+
+/** 替换全部数据（用于导入-替换模式） */
+async function replaceAllPeople(people) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+
+        // 事务级别错误处理
+        transaction.onerror = () => {
+            reject(transaction.error);
+        };
+        transaction.onabort = () => {
+            reject(new Error('事务被中止'));
+        };
+
+        // 清空旧数据
+        const clearRequest = store.clear();
+        clearRequest.onsuccess = () => {
+            // 写入新数据
+            people.forEach(person => {
+                store.put(person);
+            });
+        };
+        clearRequest.onerror = () => {
+            reject(clearRequest.error);
+        };
+
+        transaction.oncomplete = () => {
+            resolve(people.length);
+        };
+    });
+}
+
+// ==================== 首次运行：从旧版 localStorage 迁移数据 ====================
+
+async function migrateFromLocalStorage() {
+    try {
+        // 检查是否有旧数据
+        const oldData = localStorage.getItem(OLD_STORAGE_KEY);
+        if (!oldData) return; // 没有旧数据，无需迁移
+
+        const people = JSON.parse(oldData);
+        if (!Array.isArray(people) || people.length === 0) return;
+
+        // 检查 IndexedDB 是否已有数据（避免重复迁移）
+        const existing = await getPeople();
+        if (existing.length > 0) {
+            // 已有数据，清除 localStorage 旧标记，不再迁移
+            localStorage.removeItem(OLD_STORAGE_KEY);
+            return;
+        }
+
+        // 将旧数据写入 IndexedDB
+        const db = await openDB();
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+
+        let migratedCount = 0;
+        people.forEach(person => {
+            store.put(person);
+            migratedCount++;
+        });
+
+        await new Promise((resolve, reject) => {
+            transaction.oncomplete = () => {
+                resolve();
+            };
+            transaction.onerror = () => reject(transaction.error);
+        });
+
+        // 迁移成功后清除旧数据
+        localStorage.removeItem(OLD_STORAGE_KEY);
+        console.log(`✅ 已从 localStorage 迁移 ${migratedCount} 条数据到手机本地数据库`);
+    } catch (err) {
+        console.error('⚠️ 数据迁移失败:', err);
+        // 迁移失败不阻塞应用启动
+    }
+}
+
+// ==================== 应用初始化 ====================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // 先尝试迁移旧数据，再初始化应用
+    await migrateFromLocalStorage();
     initializeApp();
 });
 
-// 应用初始化
 function initializeApp() {
-    // 请求持久化存储，防止浏览器自动清理
-    if (navigator.storage && navigator.storage.persist) {
-        navigator.storage.persist().then(function(granted) {
-            if (granted) {
-                console.log('存储已设为持久化，数据不会被自动清理');
-            }
-        });
-    }
-    var dataBefore = getPeople().length;
-    migrateData();
-    var dataAfter = getPeople().length;
     setupNavigation();
     setupFormHandler();
     setupSearchHandler();
     refreshList();
-    // 数据完好提示
-    if (dataAfter > 0 && dataAfter === dataBefore) {
-        showToast('✅ 数据完好，共 ' + dataAfter + ' 条记录');
-    } else if (dataAfter > dataBefore) {
-        showToast('✅ 数据已更新，共 ' + dataAfter + ' 条记录');
-    }
 }
 
-// 设置导航
+// ==================== 设置导航 ====================
+
 function setupNavigation() {
+    // 只选中带有 data-screen 属性的导航按钮，排除安装按钮等
     const navBtns = document.querySelectorAll('.nav-btn[data-screen]');
     const screens = document.querySelectorAll('.screen');
 
     navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const screenId = btn.dataset.screen;
+            if (!screenId) return; // 安全兜底
+
+            // 离开输入界面时，清除编辑状态
+            if (screenId !== 'input') {
+                cancelEdit();
+            }
+
             navBtns.forEach(b => b.classList.remove('active'));
             screens.forEach(s => s.classList.remove('active'));
+
             btn.classList.add('active');
-            document.getElementById(screenId + '-screen').classList.add('active');
+            const targetScreen = document.getElementById(`${screenId}-screen`);
+            if (targetScreen) {
+                targetScreen.classList.add('active');
+            }
+
             if (screenId === 'list') {
                 refreshList();
             }
@@ -58,325 +256,99 @@ function setupNavigation() {
     });
 }
 
-// 从表单构建 person 对象
-function buildPersonFromForm(id) {
-    return {
-        id: id,
-        name: document.getElementById('name').value.trim(),
-        shopLevel: document.getElementById('shop-level').value,
-        skillLevel: document.getElementById('skill-level').value,
-        age: document.getElementById('age').value,
-        willingness: document.getElementById('willingness').value,
-        followStatus: document.getElementById('follow-status').value,
-        notes: document.getElementById('notes').value.trim(),
-    };
-}
+// ==================== 设置表单提交（统一处理新增和编辑） ====================
 
-// 验证必填字段
-function validatePerson(person) {
-    if (!person.name) { alert('请输入姓名！'); return false; }
-    if (!person.shopLevel) { alert('请选择店铺挡位！'); return false; }
-    if (!person.skillLevel) { alert('请选择行业熟练程度！'); return false; }
-    if (!person.age) { alert('请选择年龄！'); return false; }
-    if (!person.willingness) { alert('请选择意愿程度！'); return false; }
-    return true;
-}
-
-// 设置表单提交（新增和编辑共用）
 function setupFormHandler() {
     const form = document.getElementById('input-form');
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const isEdit = !!form.dataset.editId;
-        const personId = isEdit ? parseInt(form.dataset.editId) : Date.now();
-        const person = buildPersonFromForm(personId);
 
-        if (!validatePerson(person)) return;
-
-        // 新记录添加创建时间，编辑保留原时间
-        if (!isEdit) {
-            person.createdAt = new Date().toISOString();
-        } else {
-            var existing = getPeople().find(function(p) { return p.id === personId; });
-            person.createdAt = existing ? existing.createdAt : new Date().toISOString();
+    // 编辑模式下点击"取消编辑"按钮
+    const resetBtn = form.querySelector('button[type="reset"]');
+    resetBtn.addEventListener('click', (e) => {
+        if (form.dataset.editId) {
+            e.preventDefault();
+            cancelEdit();
+            // 切换到列表界面
+            document.querySelector('[data-screen="list"]').click();
         }
+    });
 
-        savePerson(person);
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // 判断是编辑模式还是新增模式
+        const isEditing = !!form.dataset.editId;
+        const personId = isEditing ? parseInt(form.dataset.editId) : Date.now();
+
+        const person = {
+            id: personId,
+            name: document.getElementById('name').value.trim(),
+            shopLevel: document.getElementById('shop-level').value,
+            skillLevel: document.getElementById('skill-level').value,
+            age: document.getElementById('age').value,
+            personality: document.getElementById('personality').value,
+            willingness: document.getElementById('willingness').value,
+            wechat: document.getElementById('wechat').value.trim(),
+        };
+
+        // 验证必填字段
+        if (!person.name) { alert('请输入姓名！'); return; }
+        if (!person.shopLevel) { alert('请选择店铺挡位！'); return; }
+        if (!person.skillLevel) { alert('请选择行业熟练程度！'); return; }
+        if (!person.age) { alert('请选择年龄！'); return; }
+        if (!person.personality) { alert('请选择性格特点！'); return; }
+        if (!person.willingness) { alert('请选择意愿程度！'); return; }
+
+        // 保存到手机本地数据库
+        await savePerson(person);
+
+        // 清理编辑状态
         form.reset();
-        if (isEdit) delete form.dataset.editId;
+        delete form.dataset.editId;
+        restoreEditUI();
 
-        alert(isEdit ? '✅ 信息已更新！' : '✅ 信息已保存！');
+        // 提示并跳转
+        alert(isEditing ? '✅ 信息已更新！' : '✅ 信息已保存！');
 
-        setTimeout(function() {
+        setTimeout(() => {
             document.querySelector('[data-screen="list"]').click();
         }, 500);
     });
 }
 
-// ==================== 排序 ====================
-
-function toggleSort(field) {
-    if (currentSort.field === field) {
-        if (currentSort.order === 'asc') {
-            currentSort.order = 'desc';
-        } else if (currentSort.order === 'desc') {
-            currentSort.order = null;
-            currentSort.field = null;
-        }
-    } else {
-        currentSort.field = field;
-        currentSort.order = 'asc';
-    }
-    refreshList();
-}
-
-function getSortedPeople() {
-    let people = getPeople();
-    if (!currentSort.field || !currentSort.order) return people;
-
-    var field = currentSort.field;
-    var multiplier = currentSort.order === 'asc' ? 1 : -1;
-
-    if (field === 'time') {
-        // 时间排序：直接用 ISO 字符串比较
-        return [...people].sort(function(a, b) {
-            var ta = a.createdAt || '';
-            var tb = b.createdAt || '';
-            if (ta < tb) return -1 * multiplier;
-            if (ta > tb) return 1 * multiplier;
-            return 0;
-        });
-    }
-
-    var orderMap = field === 'age' ? AGE_ORDER : WILLINGNESS_ORDER;
-
-    return [...people].sort(function(a, b) {
-        var va = orderMap[a[field]] ?? 99;
-        var vb = orderMap[b[field]] ?? 99;
-        return (va - vb) * multiplier;
-    });
-}
-
-function updateSortArrows() {
-    var ageArrow = document.getElementById('sort-age');
-    var willArrow = document.getElementById('sort-willingness');
-    var timeArrow = document.getElementById('sort-time');
-    var sortInfo = document.getElementById('sort-info');
-
-    if (ageArrow) ageArrow.textContent = currentSort.field === 'age' ? (currentSort.order === 'asc' ? ' ▲' : ' ▼') : '';
-    if (willArrow) willArrow.textContent = currentSort.field === 'willingness' ? (currentSort.order === 'asc' ? ' ▲' : ' ▼') : '';
-    if (timeArrow) timeArrow.textContent = currentSort.field === 'time' ? (currentSort.order === 'asc' ? ' ▲' : ' ▼') : '';
-
-    if (sortInfo) {
-        if (currentSort.field && currentSort.order) {
-            var labelMap = { age: '年龄', willingness: '意愿', time: '时间' };
-            var label = labelMap[currentSort.field] || currentSort.field;
-            var dir = currentSort.order === 'asc' ? '↑顺序' : '↓倒序';
-            sortInfo.textContent = ' | 按' + label + dir;
-        } else {
-            sortInfo.textContent = '';
-        }
-    }
-}
-
-// 获取跟进状态对应的样式类
-function getStatusClass(status) {
-    const map = {
-        '未联系': 'status-gray',
-        '已联系意向低': 'status-red',
-        '沟通中': 'status-yellow',
-        '意向高': 'status-blue',
-        '已成单': 'status-green'
-    };
-    return map[status] || '';
-}
-
-// HTML 转义
-function escHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-// 格式化时间显示
-function formatTime(isoStr) {
-    if (!isoStr) return '—';
-    try {
-        var d = new Date(isoStr);
-        var month = ('0' + (d.getMonth() + 1)).slice(-2);
-        var day = ('0' + d.getDate()).slice(-2);
-        var hours = ('0' + d.getHours()).slice(-2);
-        var mins = ('0' + d.getMinutes()).slice(-2);
-        return d.getFullYear() + '-' + month + '-' + day + ' ' + hours + ':' + mins;
-    } catch(e) {
-        return '—';
-    }
-}
-
-// ==================== 列表 & CRUD ====================
-
-function refreshList() {
-    var people = getSortedPeople();
-    var tbody = document.getElementById('table-body');
-    var totalCount = document.getElementById('total-count');
-
-    totalCount.textContent = people.length;
-    updateSortArrows();
-
-    if (people.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="empty-message">暂无数据，请先在「输入信息」页面添加</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = '';
-    people.forEach(function(person, index) {
-        var statusClass = getStatusClass(person.followStatus);
-        var fullNotes = escHtml(person.notes || '');
-        var notesShort = person.notes ? (person.notes.length > 15 ? escHtml(person.notes.slice(0, 15)) + '...' : escHtml(person.notes)) : '—';
-        var needsClick = person.notes && person.notes.length > 15;
-        var row = document.createElement('tr');
-        row.innerHTML =
-            '<td>' + (index + 1) + '</td>' +
-            '<td>' + escHtml(person.name) + '</td>' +
-            '<td>' + (escHtml(person.shopLevel) || '—') + '</td>' +
-            '<td>' + (escHtml(person.skillLevel) || '—') + '</td>' +
-            '<td>' + (escHtml(person.age) || '—') + '</td>' +
-            '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
-            '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
-            '<td class="notes-cell' + (needsClick ? ' notes-clickable' : '') + '" data-full="' + fullNotes + '" onclick="toggleNotes(this)">' + notesShort + '</td>' +
-            '<td class="time-cell">' + formatTime(person.createdAt) + '</td>' +
-            '<td>' +
-                '<div class="actions">' +
-                    '<button class="btn btn-edit" onclick="editPerson(' + person.id + ')">✏️</button>' +
-                    '<button class="btn btn-danger" onclick="deletePerson(' + person.id + ')">🗑️</button>' +
-                '</div>' +
-            '</td>';
-        tbody.appendChild(row);
-    });
-}
-
-function savePerson(person) {
-    const people = getPeople();
-    const existingIndex = people.findIndex(p => p.id === person.id);
-    if (existingIndex !== -1) {
-        people[existingIndex] = person;
-    } else {
-        people.push(person);
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(people));
-}
-
-function getPeople() {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-}
-
-// 数据迁移：启动时自动给旧记录补上缺少的字段
-function migrateData() {
-    var people = getPeople();
-    if (people.length === 0) return;
-
-    var changed = false;
-    var shopMap = { '3000以下': '3千及以下', '3千以下': '3千及以下', '3000-5000': '3千-5千', '6000-9000': '7千-9千', '6千-9千': '7千-9千', '10000及以上': '9千及以上', '1万及以上': '9千及以上' };
-    var ageMap = { '30以下': '35以下', '30-35': '35以下', '30-40': '35以下', '35-40': '35-40', '40-45': '40-45', '40-50': '45-50', '45-50': '45-50', '50-55': '50-60', '50-60': '50-60', '55-60': '50-60', '60以上': '60及以上', '60-70': '60及以上', '70及以上': '60及以上' };
-
-    people.forEach(function(p) {
-        if (p.followStatus === undefined) { p.followStatus = ''; changed = true; }
-        if (p.notes === undefined) { p.notes = ''; changed = true; }
-        if (p.createdAt === undefined) { p.createdAt = new Date().toISOString(); changed = true; }
-        if (shopMap[p.shopLevel]) { p.shopLevel = shopMap[p.shopLevel]; changed = true; }
-        if (ageMap[p.age]) { p.age = ageMap[p.age]; changed = true; }
-        if (p.followStatus === '已签约') { p.followStatus = '已成单'; changed = true; }
-    });
-
-    if (changed) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(people));
-    }
-}
-
-function deletePerson(id) {
-    if (!confirm('确定要删除这条记录吗？')) return;
-    const people = getPeople();
-    const filtered = people.filter(p => p.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-    refreshList();
-    alert('✅ 记录已删除！');
-}
-
-function editPerson(id) {
-    const people = getPeople();
-    const person = people.find(p => p.id === id);
-    if (!person) { alert('未找到该记录'); return; }
-
-    document.getElementById('name').value = person.name;
-    document.getElementById('shop-level').value = person.shopLevel;
-    document.getElementById('skill-level').value = person.skillLevel;
-    document.getElementById('age').value = person.age;
-    document.getElementById('willingness').value = person.willingness;
-    document.getElementById('follow-status').value = person.followStatus || '';
-    document.getElementById('notes').value = person.notes || '';
-
-    const form = document.getElementById('input-form');
-    form.dataset.editId = id;
-
-    document.querySelector('[data-screen="input"]').click();
-    window.scrollTo(0, 0);
-}
-
-// ==================== 多选搜索 ====================
-
-var searchResults = [];
-var searchSortOrder = null; // null, 'asc', 'desc'
-
-function getCheckedValues(groupId) {
-    const group = document.getElementById(groupId);
-    if (!group) return [];
-    const checks = group.querySelectorAll('input[type="checkbox"]:checked');
-    return Array.from(checks).map(c => c.value);
-}
+// ==================== 搜索功能 ====================
 
 function setupSearchHandler() {
     document.getElementById('search-btn').addEventListener('click', performSearch);
     document.getElementById('clear-search-btn').addEventListener('click', clearSearchFilters);
 }
 
-function performSearch() {
+async function performSearch() {
     const name = document.getElementById('search-name').value.trim().toLowerCase();
-    const ages = getCheckedValues('search-age-group');
-    const shops = getCheckedValues('search-shop-group');
-    const skills = getCheckedValues('search-skill-group');
-    const willingnesses = getCheckedValues('search-willingness-group');
-    const statuses = getCheckedValues('search-status-group');
+    const age = document.getElementById('search-age').value;
+    const shop = document.getElementById('search-shop').value;
+    const skill = document.getElementById('search-skill').value;
+    const personality = document.getElementById('search-personality').value;
+    const willingness = document.getElementById('search-willingness').value;
 
-    let results = getPeople();
+    let results = await getPeople();
 
-    if (name) {
-        results = results.filter(p => p.name.toLowerCase().includes(name));
-    }
-    if (ages.length > 0) {
-        results = results.filter(p => ages.includes(p.age));
-    }
-    if (shops.length > 0) {
-        results = results.filter(p => shops.includes(p.shopLevel));
-    }
-    if (skills.length > 0) {
-        results = results.filter(p => skills.includes(p.skillLevel));
-    }
-    if (willingnesses.length > 0) {
-        results = results.filter(p => willingnesses.includes(p.willingness));
-    }
-    if (statuses.length > 0) {
-        results = results.filter(p => statuses.includes(p.followStatus));
-    }
+    if (name) results = results.filter(p => p.name.toLowerCase().includes(name));
+    if (age) results = results.filter(p => p.age === age);
+    if (shop) results = results.filter(p => p.shopLevel === shop);
+    if (skill) results = results.filter(p => p.skillLevel === skill);
+    if (personality) results = results.filter(p => p.personality === personality);
+    if (willingness) results = results.filter(p => p.willingness === willingness);
 
-    searchResults = results;
-    searchSortOrder = null;
-    updateSearchSortArrow();
     displaySearchResults(results);
 }
 
 function clearSearchFilters() {
     document.getElementById('search-name').value = '';
-    document.querySelectorAll('.checkbox-group input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.getElementById('search-age').value = '';
+    document.getElementById('search-shop').value = '';
+    document.getElementById('search-skill').value = '';
+    document.getElementById('search-personality').value = '';
+    document.getElementById('search-willingness').value = '';
     document.getElementById('search-results').style.display = 'none';
     document.getElementById('no-results').style.display = 'none';
 }
@@ -399,59 +371,158 @@ function displaySearchResults(results) {
     tbody.innerHTML = '';
 
     results.forEach((person, index) => {
-        const statusClass = getStatusClass(person.followStatus);
         const row = document.createElement('tr');
-        row.innerHTML =
-            '<td>' + (index + 1) + '</td>' +
-            '<td>' + escHtml(person.name) + '</td>' +
-            '<td>' + (escHtml(person.shopLevel) || '—') + '</td>' +
-            '<td>' + (escHtml(person.skillLevel) || '—') + '</td>' +
-            '<td>' + (escHtml(person.age) || '—') + '</td>' +
-            '<td>' + (escHtml(person.willingness) || '—') + '</td>' +
-            '<td><span class="status-badge ' + statusClass + '">' + (escHtml(person.followStatus) || '—') + '</span></td>' +
-            '<td class="notes-cell' + ((person.notes && person.notes.length > 15) ? ' notes-clickable' : '') + '" data-full="' + escHtml(person.notes || '') + '" onclick="toggleNotes(this)">' + (person.notes ? (person.notes.length > 15 ? escHtml(person.notes.slice(0, 15)) + '...' : escHtml(person.notes)) : '—') + '</td>' +
-            '<td class="time-cell">' + formatTime(person.createdAt) + '</td>';
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${escapeHtml(person.name)}</td>
+            <td>${escapeHtml(person.shopLevel) || '—'}</td>
+            <td>${escapeHtml(person.skillLevel) || '—'}</td>
+            <td>${escapeHtml(person.age) || '—'}</td>
+            <td>${escapeHtml(person.personality) || '—'}</td>
+            <td>${escapeHtml(person.willingness) || '—'}</td>
+            <td>${escapeHtml(person.wechat) || '—'}</td>
+        `;
         tbody.appendChild(row);
     });
-
-    // 自动滚动到搜索结果
-    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// 搜索结果按时间排序
-function toggleSearchSort() {
-    if (searchSortOrder === null) {
-        searchSortOrder = 'asc';
-    } else if (searchSortOrder === 'asc') {
-        searchSortOrder = 'desc';
-    } else {
-        searchSortOrder = null;
+// ==================== 列表显示 ====================
+
+async function refreshList() {
+    const people = await getPeople();
+    const tbody = document.getElementById('table-body');
+    const totalCount = document.getElementById('total-count');
+
+    totalCount.textContent = people.length;
+
+    if (people.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-message">暂无数据，请先在"输入信息"页面添加</td></tr>';
+        return;
     }
-    updateSearchSortArrow();
-    if (searchSortOrder) {
-        var sorted = searchResults.slice().sort(function(a, b) {
-            var ta = a.createdAt || '';
-            var tb = b.createdAt || '';
-            if (searchSortOrder === 'asc') return ta < tb ? -1 : ta > tb ? 1 : 0;
-            return ta > tb ? -1 : ta < tb ? 1 : 0;
-        });
-        displaySearchResults(sorted);
-    } else {
-        displaySearchResults(searchResults);
+
+    tbody.innerHTML = '';
+    people.forEach((person, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${escapeHtml(person.name)}</td>
+            <td>${escapeHtml(person.shopLevel) || '—'}</td>
+            <td>${escapeHtml(person.skillLevel) || '—'}</td>
+            <td>${escapeHtml(person.age) || '—'}</td>
+            <td>${escapeHtml(person.personality) || '—'}</td>
+            <td>${escapeHtml(person.willingness) || '—'}</td>
+            <td>${escapeHtml(person.wechat) || '—'}</td>
+            <td>
+                <div class="actions">
+                    <button class="btn btn-edit" onclick="editPerson(${person.id})">✏️ 编辑</button>
+                    <button class="btn btn-danger" onclick="deletePerson(${person.id})">🗑️ 删除</button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// ==================== 删除人员 ====================
+
+async function deletePerson(id) {
+    if (!confirm('确定要删除这条记录吗？')) return;
+
+    await deletePersonFromDB(id);
+    await refreshList();
+    alert('✅ 记录已删除！');
+}
+
+// ==================== 编辑人员 ====================
+
+/** 取消编辑状态，清空表单并恢复 UI */
+function cancelEdit() {
+    const form = document.getElementById('input-form');
+    if (form.dataset.editId) {
+        form.reset();
+        delete form.dataset.editId;
+        restoreEditUI();
     }
 }
 
-function updateSearchSortArrow() {
-    var arrow = document.getElementById('sort-search-time');
-    if (arrow) {
-        arrow.textContent = searchSortOrder === 'asc' ? ' ▲' : searchSortOrder === 'desc' ? ' ▼' : '';
+/** 进入编辑模式的 UI 变化 */
+function setEditUI() {
+    const heading = document.querySelector('#input-screen h2');
+    const submitBtn = document.querySelector('#input-form button[type="submit"]');
+    const resetBtn = document.querySelector('#input-form button[type="reset"]');
+    const form = document.getElementById('input-form');
+
+    if (heading) {
+        heading.textContent = '✏️ 编辑人员信息';
+        heading.style.color = '#E91E63';
     }
+    if (submitBtn) {
+        submitBtn.textContent = '💾 更新';
+        submitBtn.style.background = '#E91E63';
+    }
+    if (resetBtn) {
+        resetBtn.textContent = '❌ 取消编辑';
+        resetBtn.style.background = '#ff6b6b';
+        resetBtn.style.color = 'white';
+    }
+    form.classList.add('editing');
 }
 
-// ==================== 备份 & 恢复 ====================
+/** 恢复新增模式的 UI */
+function restoreEditUI() {
+    const heading = document.querySelector('#input-screen h2');
+    const submitBtn = document.querySelector('#input-form button[type="submit"]');
+    const resetBtn = document.querySelector('#input-form button[type="reset"]');
+    const form = document.getElementById('input-form');
 
-function exportData() {
-    const people = getPeople();
+    if (heading) {
+        heading.textContent = '📝 输入人员信息';
+        heading.style.color = '#333';
+    }
+    if (submitBtn) {
+        submitBtn.textContent = '✅ 保存';
+        submitBtn.style.background = '';
+    }
+    if (resetBtn) {
+        resetBtn.textContent = '🔄 清空';
+        resetBtn.style.background = '';
+        resetBtn.style.color = '';
+    }
+    form.classList.remove('editing');
+}
+
+async function editPerson(id) {
+    const people = await getPeople();
+    const person = people.find(p => p.id === id);
+
+    if (!person) {
+        alert('未找到该记录');
+        return;
+    }
+
+    document.getElementById('name').value = person.name;
+    document.getElementById('shop-level').value = person.shopLevel;
+    document.getElementById('skill-level').value = person.skillLevel;
+    document.getElementById('age').value = person.age;
+    document.getElementById('personality').value = person.personality;
+    document.getElementById('willingness').value = person.willingness;
+    document.getElementById('wechat').value = person.wechat;
+
+    const form = document.getElementById('input-form');
+    form.dataset.editId = id;
+
+    // 更新 UI 为编辑模式
+    setEditUI();
+
+    document.querySelector('[data-screen="input"]').click();
+    window.scrollTo(0, 0);
+}
+
+// ==================== 备份 & 恢复（基于 IndexedDB） ====================
+
+/** 导出数据为 JSON 文件并下载到手机 */
+async function exportData() {
+    const people = await getPeople();
     if (people.length === 0) {
         alert('⚠️ 当前没有数据可以备份！');
         return;
@@ -471,127 +542,96 @@ function exportData() {
     const a = document.createElement('a');
     a.href = url;
     const dateStr = new Date().toISOString().slice(0, 10);
-    a.download = '人员信息备份_' + dateStr + '.json';
+    a.download = `人员信息备份_${dateStr}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    alert('✅ 备份成功！文件已下载（' + people.length + ' 条记录）\n\n💡 请将文件保存到安全的位置，如：\n  - 手机「文件管理」文件夹\n  - 发送到微信「文件传输助手」\n  - 保存到云盘');
+    alert(`✅ 备份成功！文件已下载到手机（${people.length} 条记录）\n\n💡 请将文件保存到安全的位置，如：\n  - 手机"文件管理"文件夹\n  - 发送到微信"文件传输助手"\n  - 保存到云盘`);
 }
 
+/** 从 JSON 文件导入数据 */
 function importData(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
             const importObj = JSON.parse(e.target.result);
+
             if (!importObj.data || !Array.isArray(importObj.data)) {
-                alert('❌ 文件格式不正确！请选择通过「💾 备份」功能导出的 JSON 文件。');
+                alert('❌ 文件格式不正确！请选择通过"💾 备份"功能导出的 JSON 文件。');
                 return;
             }
 
-            var count = importObj.data.length;
-            var exportedDate = importObj.exportedAt
+            const count = importObj.data.length;
+            const exportedDate = importObj.exportedAt
                 ? new Date(importObj.exportedAt).toLocaleString('zh-CN')
                 : '未知';
 
-            // 显示自定义弹窗
-            showImportModal(count, exportedDate, function(mode) {
-                if (mode === 'merge') {
-                    var existing = getPeople();
-                    var existingCopy = existing.slice(); // 浅拷贝用于修改
-                    var newItems = [];
+            const action = confirm(
+                `📥 发现备份文件：\n` +
+                `  - 备份时间：${exportedDate}\n` +
+                `  - 记录数量：${count} 条\n\n` +
+                `请选择操作：\n` +
+                `  【确定】替换当前所有数据\n` +
+                `  【取消】合并到现有数据（不覆盖）`
+            );
 
-                    importObj.data.forEach(function(p) {
-                        var matchIdx = -1;
-                        for (var i = 0; i < existingCopy.length; i++) {
-                            if (existingCopy[i].name === p.name && existingCopy[i].age === p.age) {
-                                matchIdx = i; break;
-                            }
-                        }
-                        if (matchIdx === -1) {
-                            // 无匹配 → 新增
-                            newItems.push(p);
-                        } else {
-                            // 匹配到 → 保留信息更丰富的那条
-                            var e = existingCopy[matchIdx];
-                            var eFilled = (e.shopLevel ? 1 : 0) + (e.skillLevel ? 1 : 0) + (e.willingness ? 1 : 0) + (e.followStatus ? 1 : 0) + (e.notes ? 1 : 0);
-                            var pFilled = (p.shopLevel ? 1 : 0) + (p.skillLevel ? 1 : 0) + (p.willingness ? 1 : 0) + (p.followStatus ? 1 : 0) + (p.notes ? 1 : 0);
-                            if (pFilled > eFilled) {
-                                // 备份信息更丰富 → 用它替换
-                                existingCopy[matchIdx] = p;
-                            }
-                            // 否则保留原有
-                        }
-                    });
-
-                    var merged = existingCopy.concat(newItems);
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-                    alert('✅ 数据已合并！新增 ' + newItems.length + ' 条记录（共 ' + merged.length + ' 条）。');
+            if (action) {
+                // 直接替换：清空后批量写入
+                await replaceAllPeople(importObj.data);
+                alert(`✅ 数据已替换！共导入 ${count} 条记录。`);
+            } else {
+                // 合并模式：以 id 去重，保留已有数据优先（单事务批量写入）
+                const existing = await getPeople();
+                const existingIds = new Set(existing.map(p => p.id));
+                const newItems = importObj.data.filter(p => !existingIds.has(p.id));
+                if (newItems.length > 0) {
+                    await batchSavePeople(newItems);
                 }
-                refreshList();
-            });
+                const merged = await getPeople();
+                alert(`✅ 数据已合并！新增 ${newItems.length} 条记录（共 ${merged.length} 条）。`);
+            }
+
+            await refreshList();
         } catch (err) {
+            console.error('导入失败:', err);
             alert('❌ 无法解析文件，请确保选择的是 JSON 格式的备份文件。');
         }
     };
     reader.readAsText(file);
+
+    // 清空 input，允许重复选择同一文件
     event.target.value = '';
 }
 
+/** 触发文件选择框（由"📥 恢复"按钮调用） */
 function triggerImport() {
     document.getElementById('import-file-input').click();
 }
 
-// 点击备注单元格展开/收起
-function toggleNotes(td) {
-    var full = td.getAttribute('data-full');
-    if (td.classList.contains('notes-expanded')) {
-        td.classList.remove('notes-expanded');
-        td.textContent = full.length > 15 ? full.slice(0, 15) + '...' : (full || '—');
-    } else {
-        td.classList.add('notes-expanded');
-        td.textContent = full || '—';
-    }
-}
-
-// 底部提示条
-function showToast(msg) {
-    var toast = document.getElementById('toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'toast';
-        toast.className = 'toast';
-        document.body.appendChild(toast);
-    }
-    toast.textContent = msg;
-    toast.classList.add('toast-show');
-    setTimeout(function() {
-        toast.classList.remove('toast-show');
-    }, 2500);
-}
-
-// 自定义导入确认弹窗
-function showImportModal(count, dateStr, callback) {
-    var modal = document.getElementById('import-modal');
-    var body = document.getElementById('modal-body');
-    var btnMerge = document.getElementById('modal-merge');
-    var btnCancel = document.getElementById('modal-cancel');
-
-    body.textContent = '备份时间：' + dateStr + '\n记录数量：' + count + ' 条\n\n按姓名+年龄匹配，保留信息更丰富的那条';
-
-    modal.style.display = 'flex';
-
-    function close(mode) {
-        modal.style.display = 'none';
-        btnMerge.onclick = null;
-        btnCancel.onclick = null;
-        if (callback) callback(mode);
-    }
-
-    btnMerge.onclick = function() { close('merge'); };
-    btnCancel.onclick = function() { close(null); };
+// ==================== 调试：在控制台暴露数据查看接口 ====================
+// 在浏览器控制台中输入以下命令：
+//   await __db.list()     查看所有数据
+//   await __db.count()    查看数据条数
+//   await __db.clear()    清空所有数据（危险操作）
+if (typeof window !== 'undefined') {
+    window.__db = {
+        list: getPeople,
+        count: async () => (await getPeople()).length,
+        clear: async () => {
+            if (!confirm('⚠️ 确定要清空所有本地数据吗？此操作不可恢复！')) return;
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(STORE_NAME, 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.clear();
+                request.onsuccess = () => { resolve(); alert('✅ 数据已清空'); };
+                request.onerror = () => { reject(request.error); };
+            });
+        }
+    };
 }
