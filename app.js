@@ -4,38 +4,54 @@ const DB_VERSION = 1;
 const STORE_NAME = 'people';
 const OLD_STORAGE_KEY = 'personInfoData'; // 旧版 localStorage 键名，用于首次迁移
 
+/** HTML 转义，防止 XSS 攻击 */
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 /**
- * 打开 IndexedDB 数据库
+ * 打开 IndexedDB 数据库（单例复用连接）
  * 数据库文件存储在手机/浏览器的本地文件系统中，不会被系统随意清理
  */
+let _dbPromise = null;
+
 function openDB() {
-    return new Promise((resolve, reject) => {
+    if (_dbPromise) return _dbPromise;
+
+    _dbPromise = new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        // 首次创建或版本升级时触发
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                // 建立索引，方便按姓名快速搜索
                 store.createIndex('name', 'name', { unique: false });
             }
         };
 
         request.onsuccess = (event) => {
-            resolve(event.target.result);
+            const db = event.target.result;
+            db.onclose = () => {
+                _dbPromise = null;
+            };
+            resolve(db);
         };
 
         request.onerror = (event) => {
+            _dbPromise = null;
             console.error('❌ IndexedDB 打开失败:', event.target.error);
             reject(event.target.error);
         };
     });
+
+    return _dbPromise;
 }
 
 // ==================== 数据 CRUD 操作（全部基于 IndexedDB） ====================
 
-/** 获取所有人员信息 */
 async function getPeople() {
     try {
         const db = await openDB();
@@ -43,16 +59,8 @@ async function getPeople() {
             const transaction = db.transaction(STORE_NAME, 'readonly');
             const store = transaction.objectStore(STORE_NAME);
             const request = store.getAll();
-
-            request.onsuccess = () => {
-                resolve(request.result || []);
-            };
-            request.onerror = () => {
-                reject(request.error);
-            };
-            transaction.oncomplete = () => {
-                db.close();
-            };
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
         });
     } catch (err) {
         console.error('❌ 读取数据失败:', err);
@@ -60,43 +68,39 @@ async function getPeople() {
     }
 }
 
-/** 保存人员信息（新增或更新，以 id 为键） */
 async function savePerson(person) {
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
-        const request = store.put(person); // put = 存在则更新，不存在则新增
-
-        request.onsuccess = () => {
-            resolve();
-        };
-        request.onerror = () => {
-            reject(request.error);
-        };
-        transaction.oncomplete = () => {
-            db.close();
-        };
+        const request = store.put(person);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
     });
 }
 
-/** 删除人员 */
 async function deletePersonFromDB(id) {
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
 
-        request.onsuccess = () => {
-            resolve();
-        };
-        request.onerror = () => {
-            reject(request.error);
-        };
-        transaction.oncomplete = () => {
-            db.close();
-        };
+/** 批量保存人员（单事务，高性能导入） */
+async function batchSavePeople(people) {
+    if (!people || people.length === 0) return 0;
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(new Error('批量保存事务被中止'));
+        transaction.oncomplete = () => resolve(people.length);
+        people.forEach(person => store.put(person));
     });
 }
 
@@ -106,24 +110,12 @@ async function replaceAllPeople(people) {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
-
-        // 清空旧数据
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(new Error('事务被中止'));
         const clearRequest = store.clear();
-        clearRequest.onsuccess = () => {
-            // 写入新数据
-            let count = 0;
-            people.forEach(person => {
-                store.put(person);
-                count++;
-            });
-            transaction.oncomplete = () => {
-                db.close();
-                resolve(count);
-            };
-        };
-        clearRequest.onerror = () => {
-            reject(clearRequest.error);
-        };
+        clearRequest.onsuccess = () => people.forEach(person => store.put(person));
+        clearRequest.onerror = () => reject(clearRequest.error);
+        transaction.oncomplete = () => resolve(people.length);
     });
 }
 
@@ -131,53 +123,34 @@ async function replaceAllPeople(people) {
 
 async function migrateFromLocalStorage() {
     try {
-        // 检查是否有旧数据
         const oldData = localStorage.getItem(OLD_STORAGE_KEY);
-        if (!oldData) return; // 没有旧数据，无需迁移
-
+        if (!oldData) return;
         const people = JSON.parse(oldData);
         if (!Array.isArray(people) || people.length === 0) return;
-
-        // 检查 IndexedDB 是否已有数据（避免重复迁移）
         const existing = await getPeople();
         if (existing.length > 0) {
-            // 已有数据，清除 localStorage 旧标记，不再迁移
             localStorage.removeItem(OLD_STORAGE_KEY);
             return;
         }
-
-        // 将旧数据写入 IndexedDB
         const db = await openDB();
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
-
         let migratedCount = 0;
-        people.forEach(person => {
-            store.put(person);
-            migratedCount++;
-        });
-
+        people.forEach(person => { store.put(person); migratedCount++; });
         await new Promise((resolve, reject) => {
-            transaction.oncomplete = () => {
-                db.close();
-                resolve();
-            };
+            transaction.oncomplete = () => resolve();
             transaction.onerror = () => reject(transaction.error);
         });
-
-        // 迁移成功后清除旧数据
         localStorage.removeItem(OLD_STORAGE_KEY);
         console.log(`✅ 已从 localStorage 迁移 ${migratedCount} 条数据到手机本地数据库`);
     } catch (err) {
         console.error('⚠️ 数据迁移失败:', err);
-        // 迁移失败不阻塞应用启动
     }
 }
 
 // ==================== 应用初始化 ====================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 先尝试迁移旧数据，再初始化应用
     await migrateFromLocalStorage();
     initializeApp();
 });
@@ -192,18 +165,26 @@ function initializeApp() {
 // ==================== 设置导航 ====================
 
 function setupNavigation() {
-    const navBtns = document.querySelectorAll('.nav-btn');
+    const navBtns = document.querySelectorAll('.nav-btn[data-screen]');
     const screens = document.querySelectorAll('.screen');
 
     navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const screenId = btn.dataset.screen;
+            if (!screenId) return;
+
+            if (screenId !== 'input') {
+                cancelEdit();
+            }
 
             navBtns.forEach(b => b.classList.remove('active'));
             screens.forEach(s => s.classList.remove('active'));
 
             btn.classList.add('active');
-            document.getElementById(`${screenId}-screen`).classList.add('active');
+            const targetScreen = document.getElementById(`${screenId}-screen`);
+            if (targetScreen) {
+                targetScreen.classList.add('active');
+            }
 
             if (screenId === 'list') {
                 refreshList();
@@ -216,10 +197,19 @@ function setupNavigation() {
 
 function setupFormHandler() {
     const form = document.getElementById('input-form');
+
+    const resetBtn = form.querySelector('button[type="reset"]');
+    resetBtn.addEventListener('click', (e) => {
+        if (form.dataset.editId) {
+            e.preventDefault();
+            cancelEdit();
+            document.querySelector('[data-screen="list"]').click();
+        }
+    });
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        // 判断是编辑模式还是新增模式
         const isEditing = !!form.dataset.editId;
         const personId = isEditing ? parseInt(form.dataset.editId) : Date.now();
 
@@ -234,7 +224,6 @@ function setupFormHandler() {
             wechat: document.getElementById('wechat').value.trim(),
         };
 
-        // 验证必填字段
         if (!person.name) { alert('请输入姓名！'); return; }
         if (!person.shopLevel) { alert('请选择店铺挡位！'); return; }
         if (!person.skillLevel) { alert('请选择行业熟练程度！'); return; }
@@ -242,14 +231,12 @@ function setupFormHandler() {
         if (!person.personality) { alert('请选择性格特点！'); return; }
         if (!person.willingness) { alert('请选择意愿程度！'); return; }
 
-        // 保存到手机本地数据库
         await savePerson(person);
 
-        // 清理编辑状态
         form.reset();
         delete form.dataset.editId;
+        restoreEditUI();
 
-        // 提示并跳转
         alert(isEditing ? '✅ 信息已更新！' : '✅ 信息已保存！');
 
         setTimeout(() => {
@@ -317,13 +304,13 @@ function displaySearchResults(results) {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td>${person.name}</td>
-            <td>${person.shopLevel || '—'}</td>
-            <td>${person.skillLevel || '—'}</td>
-            <td>${person.age || '—'}</td>
-            <td>${person.personality || '—'}</td>
-            <td>${person.willingness || '—'}</td>
-            <td>${person.wechat || '—'}</td>
+            <td>${escapeHtml(person.name)}</td>
+            <td>${escapeHtml(person.shopLevel) || '—'}</td>
+            <td>${escapeHtml(person.skillLevel) || '—'}</td>
+            <td>${escapeHtml(person.age) || '—'}</td>
+            <td>${escapeHtml(person.personality) || '—'}</td>
+            <td>${escapeHtml(person.willingness) || '—'}</td>
+            <td>${escapeHtml(person.wechat) || '—'}</td>
         `;
         tbody.appendChild(row);
     });
@@ -348,13 +335,13 @@ async function refreshList() {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td>${person.name}</td>
-            <td>${person.shopLevel || '—'}</td>
-            <td>${person.skillLevel || '—'}</td>
-            <td>${person.age || '—'}</td>
-            <td>${person.personality || '—'}</td>
-            <td>${person.willingness || '—'}</td>
-            <td>${person.wechat || '—'}</td>
+            <td>${escapeHtml(person.name)}</td>
+            <td>${escapeHtml(person.shopLevel) || '—'}</td>
+            <td>${escapeHtml(person.skillLevel) || '—'}</td>
+            <td>${escapeHtml(person.age) || '—'}</td>
+            <td>${escapeHtml(person.personality) || '—'}</td>
+            <td>${escapeHtml(person.willingness) || '—'}</td>
+            <td>${escapeHtml(person.wechat) || '—'}</td>
             <td>
                 <div class="actions">
                     <button class="btn btn-edit" onclick="editPerson(${person.id})">✏️ 编辑</button>
@@ -370,13 +357,65 @@ async function refreshList() {
 
 async function deletePerson(id) {
     if (!confirm('确定要删除这条记录吗？')) return;
-
     await deletePersonFromDB(id);
     await refreshList();
     alert('✅ 记录已删除！');
 }
 
 // ==================== 编辑人员 ====================
+
+function cancelEdit() {
+    const form = document.getElementById('input-form');
+    if (form.dataset.editId) {
+        form.reset();
+        delete form.dataset.editId;
+        restoreEditUI();
+    }
+}
+
+function setEditUI() {
+    const heading = document.querySelector('#input-screen h2');
+    const submitBtn = document.querySelector('#input-form button[type="submit"]');
+    const resetBtn = document.querySelector('#input-form button[type="reset"]');
+    const form = document.getElementById('input-form');
+
+    if (heading) {
+        heading.textContent = '✏️ 编辑人员信息';
+        heading.style.color = '#E91E63';
+    }
+    if (submitBtn) {
+        submitBtn.textContent = '💾 更新';
+        submitBtn.style.background = '#E91E63';
+    }
+    if (resetBtn) {
+        resetBtn.textContent = '❌ 取消编辑';
+        resetBtn.style.background = '#ff6b6b';
+        resetBtn.style.color = 'white';
+    }
+    form.classList.add('editing');
+}
+
+function restoreEditUI() {
+    const heading = document.querySelector('#input-screen h2');
+    const submitBtn = document.querySelector('#input-form button[type="submit"]');
+    const resetBtn = document.querySelector('#input-form button[type="reset"]');
+    const form = document.getElementById('input-form');
+
+    if (heading) {
+        heading.textContent = '📝 输入人员信息';
+        heading.style.color = '#333';
+    }
+    if (submitBtn) {
+        submitBtn.textContent = '✅ 保存';
+        submitBtn.style.background = '';
+    }
+    if (resetBtn) {
+        resetBtn.textContent = '🔄 清空';
+        resetBtn.style.background = '';
+        resetBtn.style.color = '';
+    }
+    form.classList.remove('editing');
+}
 
 async function editPerson(id) {
     const people = await getPeople();
@@ -398,13 +437,14 @@ async function editPerson(id) {
     const form = document.getElementById('input-form');
     form.dataset.editId = id;
 
+    setEditUI();
+
     document.querySelector('[data-screen="input"]').click();
     window.scrollTo(0, 0);
 }
 
 // ==================== 备份 & 恢复（基于 IndexedDB） ====================
 
-/** 导出数据为 JSON 文件并下载到手机 */
 async function exportData() {
     const people = await getPeople();
     if (people.length === 0) {
@@ -435,7 +475,6 @@ async function exportData() {
     alert(`✅ 备份成功！文件已下载到手机（${people.length} 条记录）\n\n💡 请将文件保存到安全的位置，如：\n  - 手机"文件管理"文件夹\n  - 发送到微信"文件传输助手"\n  - 保存到云盘`);
 }
 
-/** 从 JSON 文件导入数据 */
 function importData(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -465,16 +504,14 @@ function importData(event) {
             );
 
             if (action) {
-                // 直接替换：清空后批量写入
                 await replaceAllPeople(importObj.data);
                 alert(`✅ 数据已替换！共导入 ${count} 条记录。`);
             } else {
-                // 合并模式：以 id 去重，保留已有数据优先
                 const existing = await getPeople();
                 const existingIds = new Set(existing.map(p => p.id));
                 const newItems = importObj.data.filter(p => !existingIds.has(p.id));
-                for (const person of newItems) {
-                    await savePerson(person);
+                if (newItems.length > 0) {
+                    await batchSavePeople(newItems);
                 }
                 const merged = await getPeople();
                 alert(`✅ 数据已合并！新增 ${newItems.length} 条记录（共 ${merged.length} 条）。`);
@@ -487,21 +524,14 @@ function importData(event) {
         }
     };
     reader.readAsText(file);
-
-    // 清空 input，允许重复选择同一文件
     event.target.value = '';
 }
 
-/** 触发文件选择框（由"📥 恢复"按钮调用） */
 function triggerImport() {
     document.getElementById('import-file-input').click();
 }
 
-// ==================== 调试：在控制台暴露数据查看接口 ====================
-// 在浏览器控制台中输入以下命令：
-//   await __db.list()     查看所有数据
-//   await __db.count()    查看数据条数
-//   await __db.clear()    清空所有数据（危险操作）
+// ==================== 调试接口 ====================
 if (typeof window !== 'undefined') {
     window.__db = {
         list: getPeople,
@@ -513,8 +543,8 @@ if (typeof window !== 'undefined') {
                 const transaction = db.transaction(STORE_NAME, 'readwrite');
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.clear();
-                request.onsuccess = () => { db.close(); resolve(); alert('✅ 数据已清空'); };
-                request.onerror = () => { db.close(); reject(request.error); };
+                request.onsuccess = () => { resolve(); alert('✅ 数据已清空'); };
+                request.onerror = () => reject(request.error);
             });
         }
     };

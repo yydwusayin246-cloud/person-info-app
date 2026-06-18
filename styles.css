@@ -127,6 +127,17 @@ html, body {
     border: 1px solid #e0e0e0;
 }
 
+#input-form.editing {
+    border-color: #E91E63;
+    box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.15);
+    animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.15); }
+    50% { box-shadow: 0 0 0 6px rgba(233, 30, 99, 0.05); }
+}
+
 .form-group {
     margin-bottom: 20px;
 }
@@ -204,6 +215,73 @@ html, body {
 
 .btn-danger:hover {
     background: #ff5252;
+}
+
+/* ===== 备份/恢复栏 ===== */
+.backup-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.btn-backup {
+    background: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-backup:hover {
+    background: #43A047;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+}
+
+.btn-restore {
+    background: #FF9800;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-restore:hover {
+    background: #F57C00;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 152, 0, 0.4);
+}
+
+.btn-edit {
+    background: #2196F3;
+    color: white;
+    padding: 6px 12px;
+    font-size: 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-edit:hover {
+    background: #1976D2;
+    transform: translateY(-1px);
+}
+
+.actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 /* ===== 统计条 ===== */
@@ -404,7 +482,7 @@ html, body {
 }
 
 #install-progress.show {
-    display: block;
+    display: block !important;
     animation: slideDown 0.3s ease;
 }
 

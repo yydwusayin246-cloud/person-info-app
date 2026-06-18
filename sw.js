@@ -1,11 +1,13 @@
 // Service Worker - 处理离线缓存和后台服务
 const CACHE_NAME = 'person-info-app-v2';
+
+const BASE_PATH = self.location.pathname.replace(/\/[^/]*$/, '');
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/app.js',
-  '/manifest.json'
+  `${BASE_PATH}/`,
+  `${BASE_PATH}/index.html`,
+  `${BASE_PATH}/styles.css`,
+  `${BASE_PATH}/app.js`,
+  `${BASE_PATH}/manifest.json`
 ];
 
 // 安装 Service Worker - 缓存所有资源
@@ -153,10 +155,16 @@ self.addEventListener('fetch', event => {
 // 监听推送通知
 self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
+  const iconUrl = 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">' +
+    '<circle cx="96" cy="64" r="40" fill="white"/>' +
+    '<ellipse cx="96" cy="152" rx="72" ry="48" fill="white"/>' +
+    '</svg>'
+  );
   const options = {
     body: data.body || '你有新的通知',
-    icon: '/manifest.json',
-    badge: '/manifest.json'
+    icon: iconUrl,
+    badge: iconUrl
   };
 
   event.waitUntil(
