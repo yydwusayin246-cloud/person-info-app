@@ -494,13 +494,10 @@ async function deletePerson(id) {
     alert('✅ 记录已删除！');
 }
 
-/** 意愿程度对应的颜色 CSS 类名 */
+/** 进展对应的颜色 CSS 类名 */
 function getWillingnessClass(value) {
     const map = {
-        '未联系': 'will-gray',
-        '意愿低': 'will-purple',
-        '洽谈中': 'will-orange',
-        '意愿高': 'will-blue',
+        '有意愿': 'will-blue',
         '已签约': 'will-green'
     };
     return map[value] || '';
